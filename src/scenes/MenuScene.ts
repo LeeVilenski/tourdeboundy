@@ -3,7 +3,7 @@ import { willOnBike } from '../entities/WillSprite';
 import { LEVEL_NAMES, LEVELS } from '../levels';
 import { isTouch } from '../ui/input';
 import { sfx } from '../sfx';
-import { bestScore } from '../score';
+import { bestScore, unlockedCount } from '../score';
 
 export function bestTime(level: number): number | null {
   try { const v = localStorage.getItem(`tdb-best-${level}`); return v ? Number(v) : null; } catch { return null; }
@@ -51,7 +51,7 @@ export class MenuScene extends Phaser.Scene {
     // Level cards
     const startX = W / 2 - 2 * 205;
     LEVEL_NAMES.forEach((name, i) => {
-      const unlocked = i < LEVELS.length;
+      const unlocked = i < unlockedCount();
       const x = startX + i * 205, y = 300;
       const card = this.add.container(x, y);
       const bg = this.add.rectangle(0, 0, 186, 150, unlocked ? 0xe63946 : 0x555b6e, 1).setStrokeStyle(5, 0x111111);
@@ -59,7 +59,7 @@ export class MenuScene extends Phaser.Scene {
       const nm = this.add.text(0, 14, name, { fontFamily: 'Arial Black, Arial', fontSize: '17px', color: '#fff', align: 'center', wordWrap: { width: 170 } }).setOrigin(0.5);
       const best = unlocked ? bestTime(i + 1) : null;
       const hi = unlocked ? bestScore(i + 1) : null;
-      const sub = this.add.text(0, 50, unlocked ? (hi && best ? `★ ${hi.toLocaleString()} · ${fmtTime(best)}` : 'RIDE ▶') : 'Coming soon', {
+      const sub = this.add.text(0, 50, unlocked ? (hi && best ? `★ ${hi.toLocaleString()} · ${fmtTime(best)}` : 'RIDE ▶') : '🔒 Finish level ' + i, {
         fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '15px', color: unlocked ? '#ffd400' : '#ccc',
       }).setOrigin(0.5);
       card.add([bg, num, nm, sub]);

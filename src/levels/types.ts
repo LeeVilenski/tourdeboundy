@@ -1,8 +1,17 @@
 export type Pt = { x: number; y: number };
 
+export type Theme = 'lanes' | 'estuary' | 'forest' | 'moor' | 'town';
+export type WalkerKind = 'horse' | 'dogwalker' | 'hiker' | 'pony';
+
 export type ObstacleDef =
   | { type: 'cat'; x: number }
+  | { type: 'sheep'; x: number }
+  | { type: 'debris'; x: number }      // crashed bike lying in the road
   | { type: 'horse'; x: number; exitX: number }
+  | { type: 'walker'; x: number; exitX: number; who: WalkerKind } // lets you past if you ease off
+  | { type: 'gust'; x: number; len: number }                      // headwind zone
+  | { type: 'gravel'; x: number; len: number }                    // low grip
+  | { type: 'hazard'; x: number; len: number; kind: 'water' | 'mud' | 'bog' } // pit floor: crash on touch
   | { type: 'car'; x: number }       // parked car, rideable over the top
   | { type: 'trailer'; x: number }   // hay trailer with bale ramp
   | { type: 'kicker'; x: number; h: number; len: number }
@@ -14,7 +23,17 @@ export type DecorDef =
   | { type: 'sign'; x: number; text: string; icon?: 'horse' | 'cat' | 'pothole' }
   | { type: 'gate'; x: number }
   | { type: 'tractor'; x: number }
-  | { type: 'cows'; x: number };
+  | { type: 'cows'; x: number }
+  | { type: 'train'; x: number; len: number }
+  | { type: 'boat'; x: number }
+  | { type: 'obelisk'; x: number }
+  | { type: 'house'; x: number; color?: number }
+  | { type: 'pine'; x: number }
+  | { type: 'tor'; x: number }
+  | { type: 'grid'; x: number }
+  | { type: 'palm'; x: number }
+  | { type: 'plaque'; x: number; text: string }
+  | { type: 'board'; x: number; text: string };
 
 export interface LevelDef {
   id: number;
@@ -27,6 +46,13 @@ export interface LevelDef {
   decor: DecorDef[];
   finishX: number;
   outro: string;
+  theme: Theme;
+  par: number;          // par time in seconds (time bonus counts down from here)
+  rankS: number;        // score for an S rank
+  miles?: number;       // show distance as miles (Dartmoor)
+  lee?: { joinX: number; leaveX: number; bollards: number[] };
+  boss?: { sprintX: number };
+  garminGivesUp?: boolean;
   skyTop: number;
   skyBottom: number;
 }
@@ -62,6 +88,18 @@ export class TerrainBuilder {
   pothole(w = 34, d = 12) {
     this.pts.push({ x: this.x + 2, y: this.y + d }, { x: this.x + w - 2, y: this.y + d }, { x: this.x + w, y: this.y });
     this.x += w;
+    return this;
+  }
+  /** Steep-sided pit (jump it or land in whatever's at the bottom). */
+  gap(w: number, depth: number) {
+    this.pts.push({ x: this.x + 6, y: this.y + depth }, { x: this.x + w - 6, y: this.y + depth }, { x: this.x + w, y: this.y });
+    this.x += w;
+    return this;
+  }
+  /** Cattle grid: a run of small ridges. */
+  grid() {
+    for (let i = 0; i < 6; i++) this.pts.push({ x: this.x + i * 20 + 10, y: this.y + 5 }, { x: this.x + i * 20 + 20, y: this.y });
+    this.x += 120;
     return this;
   }
   mark() { return { x: this.x, y: this.y }; }

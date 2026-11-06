@@ -5,7 +5,7 @@ import { willStanding } from '../entities/WillSprite';
 import { scenery, bestTime, fmtTime } from './MenuScene';
 import { RES } from '../textures';
 import { sfx } from '../sfx';
-import { scoreRun, bestScore, saveBestScore } from '../score';
+import { scoreRun, bestScore, saveBestScore, unlock, unlockedCount } from '../score';
 
 export class ResultsScene extends Phaser.Scene {
   constructor() { super('Results'); }
@@ -18,7 +18,7 @@ export class ResultsScene extends Phaser.Scene {
 
     // best time
     const prev = bestTime(stats.level);
-    const isBest = !prev || stats.timeMs < prev;
+    const isBest = stats.boss !== 'lost' && (!prev || stats.timeMs < prev);
     if (isBest) { try { localStorage.setItem(`tdb-best-${stats.level}`, String(Math.round(stats.timeMs))); } catch { /* ignore */ } }
 
     // podium
@@ -32,42 +32,71 @@ export class ResultsScene extends Phaser.Scene {
     this.add.text(px - 130, py - 35, '2', { fontFamily: 'Georgia, serif', fontSize: '40px', color: '#fff' }).setOrigin(0.5);
     this.add.text(px + 130, py - 25, '3', { fontFamily: 'Georgia, serif', fontSize: '32px', color: '#fff' }).setOrigin(0.5);
 
-    const will = willStanding(this, px, py - 120, 1.5);
-    const pot = this.add.image(px + 46, py - 300, 'yoghurt').setScale(1.4 / RES);
-    this.tweens.add({ targets: pot, y: py - 270, duration: 600, ease: 'Bounce.out' });
+    const lost = stats.boss === 'lost';
+    const finale = !!stats.boss && !lost;
+    if (!lost) unlock(stats.level + 1);
+    const ANDY = { head: 'head_andy', torso: 'torso_andy', arm: 'arm_andy', thigh: 'thigh_dark', shin: 'shin_white' };
+    const LEE = { head: 'head_lee', torso: 'torso_lee', arm: 'arm_lee', thigh: 'thigh_dark', shin: 'shin' };
 
-    const say = (text: string, delay: number) => this.time.delayedCall(delay, () => {
-      const b = this.add.text(px + 40, py - 330, text, {
-        fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '20px', color: '#111', backgroundColor: '#fff', padding: { x: 10, y: 7 }, wordWrap: { width: 280 },
-      }).setOrigin(0.2, 1).setName('bubble');
-      this.time.delayedCall(2300, () => b.destroy());
+    const bubble = (x: number, y: number, text: string, delay: number, color = '#fff') => this.time.delayedCall(delay, () => {
+      const b = this.add.text(x, y, text, {
+        fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '19px', color: '#111', backgroundColor: color, padding: { x: 10, y: 7 }, wordWrap: { width: 260 },
+      }).setOrigin(0.2, 1);
+      this.time.delayedCall(2400, () => b.destroy());
     });
-    say('One yoghurt. Worth it.', 600);
 
-    // Garmin nag, then he jogs off
-    const garmin = this.add.container(px - 220, py - 360);
-    garmin.add(this.add.circle(0, 0, 54, 0x111111).setStrokeStyle(8, 0x444444));
-    garmin.add(this.add.text(0, -14, 'GARMIN', { fontFamily: 'Arial', fontSize: '12px', color: '#ff5a5a', fontStyle: 'bold' }).setOrigin(0.5));
-    garmin.add(this.add.text(0, 8, 'REST', { fontFamily: 'Arial Black, Arial', fontSize: '24px', color: '#fff' }).setOrigin(0.5));
-    garmin.setScale(0);
-    this.time.delayedCall(3000, () => { sfx.beep(); this.tweens.add({ targets: garmin, scale: 1, duration: 300, ease: 'Back.out' }); });
-    say(`Nah. ${def.outro}`, 3500);
-    this.time.delayedCall(6000, () => {
-      this.tweens.add({ targets: [will, pot], x: '+=1200', duration: 2600, ease: 'Quad.in' });
-      this.tweens.add({ targets: will, y: '-=10', duration: 160, yoyo: true, repeat: 8 });
-      this.tweens.add({ targets: garmin, alpha: 0, delay: 1200, duration: 600 });
-    });
+    if (lost) {
+      // Andy on top, Will (arms down) on second
+      willStanding(this, px, py - 120, 1.5, ANDY);
+      willStanding(this, px - 130, py - 70, 1.5, undefined, false);
+      bubble(px + 30, py - 330, 'Tactical.', 500, '#ffe9a8');
+      bubble(px - 170, py - 280, 'Rematch. Now.', 2400);
+      bubble(px + 30, py - 330, 'Sit on my wheel next time, son.', 4600, '#ffe9a8');
+    } else {
+      const will = willStanding(this, px, py - 120, 1.5);
+      const pot = this.add.image(px + 46, py - 300, 'yoghurt').setScale(1.4 / RES);
+      this.tweens.add({ targets: pot, y: py - 270, duration: 600, ease: 'Bounce.out' });
+      if (finale) {
+        willStanding(this, px - 130, py - 70, 1.4, ANDY, false);
+        willStanding(this, px + 130, py - 50, 1.4, LEE);
+        const bol = this.add.graphics();
+        bol.fillStyle(0x111111, 1).fillRoundedRect(px + 190, py - 120, 22, 70, 6);
+        bol.fillStyle(0xffffff, 1).fillRect(px + 190, py - 108, 22, 10).fillRect(px + 190, py - 88, 22, 10);
+        bubble(px - 200, py - 280, 'Tactical... defeat.', 2000, '#ffe9a8');
+        bubble(px + 110, py - 250, 'Brought my own bollard!', 4200, '#ffe9a8');
+        const banner = this.add.text(px, 60, 'TOUR DE BOUNDY\nCOMPLETE!', {
+          fontFamily: 'Arial Black, Arial', fontSize: '40px', color: '#ffd400', stroke: '#111', strokeThickness: 8, align: 'center',
+        }).setOrigin(0.5, 0).setScale(0);
+        this.tweens.add({ targets: banner, scale: 1, delay: 300, duration: 500, ease: 'Back.out' });
+      }
+      bubble(px + 40, py - 330, 'One yoghurt. Worth it.', 600);
+
+      // Garmin nag, then he jogs off
+      const garmin = this.add.container(px - 220, py - 360);
+      garmin.add(this.add.circle(0, 0, 54, 0x111111).setStrokeStyle(8, 0x444444));
+      garmin.add(this.add.text(0, -14, 'GARMIN', { fontFamily: 'Arial', fontSize: '12px', color: '#ff5a5a', fontStyle: 'bold' }).setOrigin(0.5));
+      garmin.add(this.add.text(0, 8, 'REST', { fontFamily: 'Arial Black, Arial', fontSize: '24px', color: '#fff' }).setOrigin(0.5));
+      garmin.setScale(0);
+      const t0 = finale ? 6200 : 3000;
+      this.time.delayedCall(t0, () => { sfx.beep(); this.tweens.add({ targets: garmin, scale: 1, duration: 300, ease: 'Back.out' }); });
+      bubble(px + 40, py - 330, `Nah. ${def.outro}`, t0 + 500);
+      this.time.delayedCall(t0 + 3000, () => {
+        this.tweens.add({ targets: [will, pot], x: '+=1200', duration: 2600, ease: 'Quad.in' });
+        this.tweens.add({ targets: will, y: '-=10', duration: 160, yoyo: true, repeat: 8 });
+        this.tweens.add({ targets: garmin, alpha: 0, delay: 1200, duration: 600 });
+      });
+    }
 
     // score card
     const sc = scoreRun(stats);
     const prevScore = bestScore(stats.level);
-    const bestScoreNow = !prevScore || sc.total > prevScore;
+    const bestScoreNow = stats.boss !== 'lost' && (!prevScore || sc.total > prevScore);
     if (bestScoreNow) saveBestScore(stats.level, sc.total);
 
     const cx = 880;
     this.add.rectangle(cx, 322, 580, 556, 0x1d2b4f, 0.9).setStrokeStyle(5, 0xffffff);
-    this.add.text(cx, 72, `${def.name.toUpperCase()} — DONE`, { fontFamily: 'Arial Black, Arial', fontSize: '28px', color: '#ffd400' }).setOrigin(0.5);
-    this.add.text(cx, 108, isBest ? 'Fastest time yet' : `Best time ${fmtTime(prev!)}`, {
+    this.add.text(cx, 72, lost ? 'PIPPED BY ANDY' : `${def.name.toUpperCase()} — DONE`, { fontFamily: 'Arial Black, Arial', fontSize: '28px', color: '#ffd400' }).setOrigin(0.5);
+    this.add.text(cx, 108, isBest ? 'Fastest time yet' : prev ? `Best time ${fmtTime(prev)}` : 'Beat Andy to set a time', {
       fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '17px', color: '#cfe0ff',
     }).setOrigin(0.5);
 
@@ -91,7 +120,7 @@ export class ResultsScene extends Phaser.Scene {
     const tickDelay = 300 + sc.lines.length * 180;
     this.tweens.add({ targets: counter, v: sc.total, delay: tickDelay, duration: 900, ease: 'Cubic.out',
       onUpdate: () => totalText.setText(Math.round(counter.v).toLocaleString()) });
-    this.add.text(cx, lineY + 62, bestScoreNow ? '★ NEW HIGH SCORE ★' : `High score ${prevScore!.toLocaleString()}`, {
+    this.add.text(cx, lineY + 62, bestScoreNow ? '★ NEW HIGH SCORE ★' : prevScore ? `High score ${prevScore.toLocaleString()}` : '', {
       fontFamily: 'Arial Black, Arial', fontSize: '17px', color: bestScoreNow ? '#ffd400' : '#cfe0ff',
     }).setOrigin(0.5);
     const rankColor = { S: '#ffd400', A: '#7CFC8A', B: '#5fd0ff', C: '#ffffff', D: '#ff9f6b' }[sc.rank]!;
@@ -116,8 +145,8 @@ export class ResultsScene extends Phaser.Scene {
     };
     btn(cx - 180, 'RIDE AGAIN', 0xe63946, () => this.scene.start('Level', { level: stats.level }));
     btn(cx, 'MENU', 0x2a9d8f, () => this.scene.start('Menu'));
-    const next = stats.level < LEVELS.length;
-    btn(cx + 190, next ? 'NEXT ▶' : 'LVL 2 SOON', 0x555b6e, next ? () => this.scene.start('Level', { level: stats.level + 1 }) : undefined);
+    const next = stats.level < LEVELS.length && unlockedCount() > stats.level;
+    btn(cx + 190, next ? 'NEXT ▶' : lost ? 'BEAT ANDY' : 'THE END', 0x2c7be5, next ? () => this.scene.start('Level', { level: stats.level + 1 }) : undefined);
 
     this.input.keyboard?.once('keydown-ENTER', () => this.scene.start('Level', { level: stats.level }));
   }

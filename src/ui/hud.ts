@@ -10,10 +10,10 @@ export const hud = {
     $('touch').classList.add('hidden');
     $('garmin').classList.add('hidden');
   },
-  set(timeMs: number, distM: number, yog: number, stamina: number) {
+  set(timeMs: number, dist: string, yog: number, stamina: number) {
     const s = timeMs / 1000;
     $('hud-time').textContent = `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
-    $('hud-dist').textContent = `${Math.max(0, Math.round(distM))} m`;
+    $('hud-dist').textContent = dist;
     $('hud-yog').textContent = `🥛 ${yog}`;
     ($('stamina-fill') as HTMLElement).style.width = `${Math.round(stamina * 100)}%`;
   },

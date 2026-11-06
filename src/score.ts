@@ -1,22 +1,28 @@
 import type { RunStats } from './scenes/LevelScene';
+import { LEVELS } from './levels';
 
 export interface ScoreLine { label: string; value: string; points: number }
 
-/** Turn a finished run into a points breakdown. */
+/** Turn a finished run into a points breakdown. Only lines that apply to the level are shown. */
 export function scoreRun(s: RunStats): { lines: ScoreLine[]; total: number; rank: string } {
+  const def = LEVELS[s.level - 1];
   const secs = s.timeMs / 1000;
   const cakesDodged = s.cakesTotal - s.cakesRefused;
-  const lines: ScoreLine[] = [
-    { label: 'Time', value: fmt(secs), points: Math.max(0, Math.round((90 - secs) * 60)) },
-    { label: 'Yoghurts', value: `${s.yoghurts} / ${s.yoghurtsTotal}`, points: s.yoghurts * 250 },
-    { label: 'Garmins ignored', value: `${s.garminIgnored}`, points: s.garminIgnored * 150 },
-    { label: 'Cakes dodged', value: `${cakesDodged} / ${s.cakesTotal}`, points: cakesDodged * 200 - s.cakesRefused * 100 },
-    { label: 'Crashes', value: `${s.crashes}`, points: s.crashes === 0 ? 1000 : -s.crashes * 300 },
-    { label: 'Horse etiquette', value: s.kickedByHorse ? 'Kicked 🐎' : s.courteous ? 'Exemplary 👍' : 'Questionable', points: s.kickedByHorse ? -250 : s.courteous ? 500 : 0 },
-    { label: 'Cats launched', value: `${s.catsLaunched}`, points: s.catsLaunched * 50 },
-  ];
+  const lines: ScoreLine[] = [];
+  if (s.boss) lines.push({ label: 'Beat Andy', value: s.boss === 'won' ? 'YES 🏆' : 'Pipped', points: s.boss === 'won' ? 3000 : 0 });
+  lines.push({ label: 'Time', value: fmt(secs), points: Math.max(0, Math.round((def.par - secs) * 60)) });
+  lines.push({ label: 'Yoghurts', value: `${s.yoghurts} / ${s.yoghurtsTotal}`, points: s.yoghurts * 250 });
+  lines.push({ label: 'Garmins ignored', value: `${s.garminIgnored}`, points: s.garminIgnored * 150 });
+  if (s.cakesTotal) lines.push({ label: 'Cakes dodged', value: `${cakesDodged} / ${s.cakesTotal}`, points: cakesDodged * 200 - s.cakesRefused * 100 });
+  lines.push({ label: 'Crashes', value: `${s.crashes}`, points: s.crashes === 0 ? 1000 : -s.crashes * 300 });
+  if (s.hasHorse) lines.push({ label: 'Horse etiquette', value: s.kickedByHorse ? 'Kicked 🐎' : s.courteous ? 'Exemplary 👍' : 'Questionable', points: s.kickedByHorse ? -250 : s.courteous ? 500 : 0 });
+  if (s.walkersTotal) lines.push({ label: 'Polite passes', value: `${s.politePasses} / ${s.walkersTotal}`, points: s.politePasses * 400 - s.walkersBumped * 250 });
+  if (s.hasCats) lines.push({ label: 'Cats launched', value: `${s.catsLaunched}`, points: s.catsLaunched * 50 });
+  if (s.hasSheep) lines.push({ label: 'Sheep launched', value: `${s.sheepLaunched}`, points: s.sheepLaunched * 50 });
+  if (s.hasLee) lines.push({ label: "Lee's bollards", value: `${s.bollards}`, points: s.bollards * 25 });
   const total = Math.max(0, lines.reduce((t, l) => t + l.points, 0));
-  const rank = total >= 8000 ? 'S' : total >= 6500 ? 'A' : total >= 5000 ? 'B' : total >= 3000 ? 'C' : 'D';
+  const S = def.rankS;
+  const rank = s.boss === 'lost' ? 'D' : total >= S ? 'S' : total >= S * 0.8 ? 'A' : total >= S * 0.62 ? 'B' : total >= S * 0.38 ? 'C' : 'D';
   return { lines, total, rank };
 }
 
@@ -29,4 +35,13 @@ export function bestScore(level: number): number | null {
 }
 export function saveBestScore(level: number, score: number) {
   try { localStorage.setItem(`tdb-score-${level}`, String(score)); } catch { /* ignore */ }
+}
+
+/** Levels unlock one at a time. `?all` in the URL unlocks everything. */
+export function unlockedCount(): number {
+  if (new URLSearchParams(location.search).has('all')) return LEVELS.length;
+  try { return Math.max(1, Number(localStorage.getItem('tdb-unlocked') || 1)); } catch { return 1; }
+}
+export function unlock(level: number) {
+  try { if (unlockedCount() < level) localStorage.setItem('tdb-unlocked', String(Math.min(level, LEVELS.length))); } catch { /* ignore */ }
 }

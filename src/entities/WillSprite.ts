@@ -17,18 +17,21 @@ export function willOnBike(scene: Phaser.Scene, x: number, y: number, scale = 1)
   return c;
 }
 
-/** Will standing up (for the podium). */
-export function willStanding(scene: Phaser.Scene, x: number, y: number, scale = 1) {
+export interface StandLook { head: string; torso: string; arm: string; thigh: string; shin: string }
+const WILL: StandLook = { head: 'head', torso: 'torso', arm: 'arm', thigh: 'thigh', shin: 'shin' };
+
+/** A rider standing up (for the podium). Defaults to Will. */
+export function willStanding(scene: Phaser.Scene, x: number, y: number, scale = 1, look: StandLook = WILL, armsUp = true) {
   const c = scene.add.container(x, y);
   const img = (k: string, px: number, py: number, rot: number) => c.add(scene.add.image(px, py, k).setScale(1 / RES).setRotation(rot));
   const up = -Math.PI / 2;
   const down = Math.PI / 2;
-  img('shin', -6, -16, down); img('shin', 6, -16, down);
-  img('thigh', -6, -44, down); img('thigh', 6, -44, down);
-  img('torso', 0, -78, up);
-  img('arm', -14, -96, -2.4);
-  img('arm', 14, -96, -0.7);
-  img('head', 2, -112, 0);
+  img(look.shin, -6, -16, down); img(look.shin, 6, -16, down);
+  img(look.thigh, -6, -44, down); img(look.thigh, 6, -44, down);
+  img(look.torso, 0, -78, up);
+  img(look.arm, -14, -96, armsUp ? -2.4 : 1.9);
+  img(look.arm, 14, -96, armsUp ? -0.7 : 1.3);
+  img(look.head, 2, -112, 0);
   c.setScale(scale);
   return c;
 }
