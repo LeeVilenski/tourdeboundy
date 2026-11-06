@@ -38,7 +38,7 @@ export const LEVEL1: LevelDef = {
   obstacles: [
     { type: 'log', x: 420 },
     { type: 'cat', x: 1250 },
-    { type: 'dog', x: 5980 },
+    { type: 'dog', x: 2230 },
     { type: 'log', x: 4470 },
     { type: 'roller', x: 9228, kind: 'bale' },
     { type: 'horse', x: 3000, exitX: 3850 },

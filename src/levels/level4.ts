@@ -37,7 +37,7 @@ export const LEVEL4: LevelDef = {
     { type: 'sheep', x: grid1 + 420 },
     { type: 'gust', x: gust1, len: 1200 },
     { type: 'roller', x: tor + 80, kind: 'boulder' },
-    { type: 'dog', x: bog + 700 },
+    { type: 'dog', x: lee + 200 },
     { type: 'roller', x: sheep2 + 40, kind: 'boulder' },
     { type: 'kicker', x: bog + 90, h: 42, len: 165 },
     { type: 'hazard', x: bog + 260, len: 190, kind: 'bog' },

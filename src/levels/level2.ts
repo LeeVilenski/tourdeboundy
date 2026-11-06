@@ -16,7 +16,6 @@ const finishX = ford + 650;
 
 const obstacles: ObstacleDef[] = [
   { type: 'overtake', triggerX: sea + 200 },
-  { type: 'dog', x: sea + 350 },
   { type: 'roller', x: summit + 60, kind: 'bale' },
   { type: 'door', x: kenn + 250 },
   { type: 'door', x: kenn + 1000 },
@@ -25,6 +24,7 @@ const obstacles: ObstacleDef[] = [
   { type: 'kicker', x: sea + 1750, h: 30, len: 90 },
   { type: 'cat', x: summit + 150 },
   { type: 'kicker', x: summit + 330, h: 82, len: 175, big: true },
+  { type: 'dog', x: summit + 560 },
   { type: 'overtake', triggerX: summit + 900 },
   { type: 'kicker', x: kenn + 450, h: 30, len: 90 },
   { type: 'kicker', x: kenn + 1150, h: 58, len: 120 },

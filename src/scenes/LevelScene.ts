@@ -425,8 +425,12 @@ export class LevelScene extends Phaser.Scene {
         this.add.image(o.x, gy - 16, 'log').setScale(1.1 / RES, 1.15 / RES).setDepth(7);
       } else if (o.type === 'door') {
         const gy = this.groundY(o.x);
-        this.add.image(o.x - 60, gy - 2, 'van').setScale(0.5 / RES * 1.6).setOrigin(0.5, 1).setDepth(3);
-        const door = this.add.rectangle(o.x, gy - 72, 10, 56, 0xf2f2f2).setStrokeStyle(3, 0x111111).setOrigin(0.5, 0).setDepth(8).setScale(0.15, 1);
+        const cg = this.add.graphics().setDepth(3), cx = o.x - 200;
+        cg.fillStyle(0x2c7be5, 1).lineStyle(3, 0x111111, 1).fillRoundedRect(cx, gy - 52, 200, 40, 10).strokeRoundedRect(cx, gy - 52, 200, 40, 10);
+        cg.fillStyle(0x2c7be5, 1).beginPath().moveTo(cx + 40, gy - 50).lineTo(cx + 70, gy - 82).lineTo(cx + 140, gy - 82).lineTo(cx + 175, gy - 50).closePath().fillPath().strokePath();
+        cg.fillStyle(0xbfe6ff, 1).fillRect(cx + 74, gy - 78, 30, 24).fillRect(cx + 110, gy - 78, 30, 24);
+        cg.fillStyle(0x111111, 1).fillCircle(cx + 40, gy - 12, 16).fillCircle(cx + 165, gy - 12, 16);
+        const door = this.add.rectangle(o.x, gy - 50, 10, 40, 0x2c7be5).setStrokeStyle(3, 0x111111).setOrigin(0.5, 0).setDepth(8).setScale(0.15, 1);
         const lights = this.add.graphics().setDepth(4);
         this.doors.push({ x: o.x, trigger: Phaser.Math.Between(480, 620), state: 'shut', door, lights });
       } else if (o.type === 'roller') {
@@ -546,7 +550,7 @@ export class LevelScene extends Phaser.Scene {
         if (ol === 'cat') { this.launchCat(other); continue; }
         if (ol === 'horse') { this.hitWalker(other); continue; }
         if (ol === 'hazard') { this.splosh(); continue; }
-        if (ol === 'door') { this.bigText(mine.position.x, mine.position.y - 60, 'DOORED!'); this.doCrash('head'); continue; }
+        if (ol === 'door' && mine.label !== 'wheel' && mine.label !== 'frame') { this.bigText(mine.position.x, mine.position.y - 60, 'DOORED!'); this.doCrash('head'); continue; }
         if (ol === 'hard' && (mine.label === 'head' || mine.label === 'torso')) { this.doCrash('head'); continue; }
         if (ol === 'ground' && (mine.label === 'head' || mine.label === 'torso')) {
           this.doCrash('head');
@@ -1085,7 +1089,7 @@ export class LevelScene extends Phaser.Scene {
   stepHazards() {
     const r = this.rider;
     if (!r) return;
-    for (const d of this.dogs) if (d.state === 'chase') d.dx += 10.6;
+    for (const d of this.dogs) if (d.state === 'chase') d.dx += 7.6; // slower than pedalling: keep moving and you escape
     for (const g of this.gulls) if (!g.done && g.sprite.active) g.sprite.x -= 7;
   }
 
@@ -1096,7 +1100,7 @@ export class LevelScene extends Phaser.Scene {
       const gap = d.x - rx;
       d.lights.clear();
       if (d.state === 'shut' && gap < 1300 && gap > 0 && Math.floor(now / 250) % 2) {
-        d.lights.fillStyle(0xffa500, 1).fillCircle(d.x - 6, gy(d.x) - 30, 6).fillCircle(d.x - 230, gy(d.x) - 30, 6);
+        d.lights.fillStyle(0xffa500, 1).fillCircle(d.x - 6, gy(d.x) - 40, 6).fillCircle(d.x - 196, gy(d.x) - 40, 6);
       }
       if (d.state === 'open' && this.physSteps > d.shutAt!) {
         if (d.body) this.matter.world.remove(d.body);
@@ -1107,9 +1111,10 @@ export class LevelScene extends Phaser.Scene {
         d.state = 'open';
         sfx.bad();
         this.tweens.add({ targets: d.door, scaleX: 3.5, x: d.x + 14, duration: 180 });
-        d.body = this.matter.add.rectangle(d.x + 18, gy(d.x) - 44, 30, 56, { isStatic: true, label: 'door' }) as Body;
-        d.shutAt = this.physSteps + 80;
-        this.time.delayedCall(300, () => this.say('WHOA, DOOR!'));
+        // low enough to hop over
+        d.body = this.matter.add.rectangle(d.x + 18, gy(d.x) - 22, 26, 30, { isStatic: true, label: 'door', chamfer: { radius: 6 } }) as Body;
+        d.shutAt = this.physSteps + 60;
+        this.time.delayedCall(150, () => this.say('DOOR! Hop it!'));
       }
     }
     // rolling bales/boulders: keep coming while you're near
@@ -1137,7 +1142,7 @@ export class LevelScene extends Phaser.Scene {
     for (const d of this.dogs) {
       if (d.state === 'wait') {
         if (rx > d.x && !r.crashed && r.speed > 3) {
-          d.state = 'chase'; d.dx = rx - 260; d.until = this.physSteps + 390;
+          d.state = 'chase'; d.dx = rx - 360; d.until = this.physSteps + 230;
           d.sprite.setFlipX(false).setDepth(12);
           this.bigText(rx - 200, gy(rx) - 120, 'WOOF!', '#fff');
           this.time.delayedCall(400, () => this.say('DOG! Sprint!'));
@@ -1151,12 +1156,12 @@ export class LevelScene extends Phaser.Scene {
         d.biteCool = this.physSteps + 90;
         d.bitten = (d.bitten ?? 0) + 1;
         this.stats.bites++;
-        r.stamina = Math.max(0, r.stamina - 0.35);
-        for (const part of r.parts) this.matter.body.setVelocity(part.body, { x: part.body.velocity.x * 0.75, y: part.body.velocity.y });
+        r.stamina = Math.max(0, r.stamina - 0.25);
+        for (const part of r.parts) this.matter.body.setVelocity(part.body, { x: part.body.velocity.x * 0.88, y: part.body.velocity.y });
         sfx.meow();
         this.bigText(rx - 40, gy(rx) - 130, 'NIPPED!', '#ff6b6b');
         d.dx -= 260;
-        if (d.bitten >= 2) d.until = 0; // satisfied
+        d.until = 0; // one nip and it's happy
       }
       if (this.physSteps > d.until || r.crashed) {
         d.state = 'done';
