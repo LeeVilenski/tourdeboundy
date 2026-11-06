@@ -81,8 +81,19 @@ export class ResultsScene extends Phaser.Scene {
       this.time.delayedCall(t0, () => { sfx.beep(); this.tweens.add({ targets: garmin, scale: 1, duration: 300, ease: 'Back.out' }); });
       bubble(px + 40, py - 330, `Nah. ${def.outro}`, t0 + 500);
       this.time.delayedCall(t0 + 3000, () => {
-        this.tweens.add({ targets: [will, pot], x: '+=1200', duration: 2600, ease: 'Quad.in' });
-        this.tweens.add({ targets: will, y: '-=10', duration: 160, yoyo: true, repeat: 8 });
+        // carry the yoghurt, hop off the podium onto the road, then jog away
+        const sc = will.scaleX;
+        pot.setPosition((pot.x - will.x) / sc, (pot.y - will.y) / sc).setScale(pot.scaleX / sc);
+        will.add(pot);
+        will.setDepth(50);
+        const roadY = 620;
+        this.tweens.chain({ targets: will, tweens: [
+          { y: will.y - 40, x: will.x + 40, duration: 220, ease: 'Quad.out' },
+          { y: roadY, x: will.x + 130, duration: 380, ease: 'Quad.in' },
+          { y: roadY - 6, duration: 90, yoyo: true },
+          { x: will.x + 1400, angle: 6, duration: 2800, ease: 'Sine.in',
+            onStart: () => this.tweens.add({ targets: will, y: roadY - 12, duration: 150, yoyo: true, repeat: -1, ease: 'Sine.out' }) },
+        ] });
         this.tweens.add({ targets: garmin, alpha: 0, delay: 1200, duration: 600 });
       });
     }

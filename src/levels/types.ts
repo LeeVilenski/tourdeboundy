@@ -52,6 +52,8 @@ export interface LevelDef {
   miles?: number;       // show distance as miles (Dartmoor)
   lee?: { joinX: number; leaveX: number; bollards: number[] };
   boss?: { sprintX: number };
+  laps?: number[];                 // x of each lap line (shows LAP n/N)
+  bunch?: { pileX: number };       // other riders; two crash at pileX
   garminGivesUp?: boolean;
   skyTop: number;
   skyBottom: number;

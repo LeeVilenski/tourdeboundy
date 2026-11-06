@@ -38,7 +38,7 @@ export const GARMIN_REPLIES = [
 export const CAKE_LINES = ['Not a chance.', 'Cake? In THIS economy?', 'Get that away from me.', 'Yoghurt or nothing.'];
 
 export const LEE_JOIN = ['Alright Will! Mind if I tag along?', 'Lee here! Lead the way.', "Back again! What could go wrong?"];
-export const LEE_CRASH = ['Who put that there?!', 'Bollard: 1, Lee: 0', "I'm fine! Bike's fine!", 'They move, I swear.', 'That one was new.', 'Tandem steers like a canal boat!'];
+export const LEE_CRASH = ['Who put that there?!', 'Bollard: 1, Lee: 0', "I'm fine! Bike's fine!", 'They move, I swear.', 'That one was new.', 'Bars are definitely bent now.'];
 export const LEE_LEAVE = ['Café stop for me. See ya!', "I'll catch you up. Probably."];
 
 export const ANDY_TAUNTS = [

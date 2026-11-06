@@ -77,7 +77,7 @@ export function makeTextures(scene: Phaser.Scene) {
   });
 
   // ---------- Frame (local origin = texture centre 65,40) ----------
-  make(scene, 'frame', 130, 80, (ctx) => {
+  const frameTex = (key: string, tube: string, accent: string, decal: string, decalColor = '#fff') => make(scene, key, 130, 80, (ctx) => {
     const o = (x: number, y: number) => [x + 65, y + 40];
     const RA = o(-42, 18), BB = o(-2, 24), ST = o(-16, -18), STT = o(-14, -14), HT = o(30, -14), HB = o(33, -1), FA = o(42, 18);
     // chainring + chain
@@ -85,7 +85,7 @@ export function makeTextures(scene: Phaser.Scene) {
     ctx.beginPath(); ctx.moveTo(RA[0], RA[1] - 5); ctx.lineTo(BB[0], BB[1] - 9); ctx.moveTo(RA[0], RA[1] + 5); ctx.lineTo(BB[0], BB[1] + 9); ctx.stroke();
     ctx.fillStyle = '#b8bcc4'; ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(BB[0], BB[1], 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    const black = '#202024';
+    const black = tube;
     line(ctx, [RA, BB], 4, black);
     line(ctx, [RA, STT], 3.5, black);
     line(ctx, [BB, ST], 5, black);
@@ -94,11 +94,11 @@ export function makeTextures(scene: Phaser.Scene) {
     line(ctx, [HT, HB], 6, black);
     line(ctx, [HB, FA], 4, black);
     // silver accent on down tube
-    ctx.strokeStyle = '#c0c4cc'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = accent; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(BB[0] + 6, BB[1] - 4); ctx.lineTo(HB[0] - 6, HB[1] + 3); ctx.stroke();
     // seatpost + saddle
     line(ctx, [ST, o(-17, -24)], 3, '#333');
-    ctx.fillStyle = black; ctx.beginPath(); ctx.ellipse(...(o(-17, -26) as [number, number]), 10, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#202024'; ctx.beginPath(); ctx.ellipse(...(o(-17, -26) as [number, number]), 10, 3, 0, 0, Math.PI * 2); ctx.fill();
     // stem + drop bars
     line(ctx, [HT, o(34, -19), o(40, -20)], 3, '#333');
     line(ctx, [o(40, -20), o(45, -17), o(45, -10), o(40, -8)], 3, '#333');
@@ -107,10 +107,16 @@ export function makeTextures(scene: Phaser.Scene) {
     const ang = Math.atan2(HB[1] - BB[1], HB[0] - BB[0]);
     ctx.translate((BB[0] + HB[0]) / 2, (BB[1] + HB[1]) / 2);
     ctx.rotate(ang);
-    ctx.fillStyle = '#fff'; ctx.font = 'italic 900 7px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('TREKK', 0, 0.5);
+    ctx.fillStyle = decalColor; ctx.font = 'italic 900 7px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(decal, 0, 0.5);
     ctx.restore();
   });
+  frameTex('frame', '#202024', '#c0c4cc', 'TREKK');
+  frameTex('frame_lee', '#1d8fb0', '#0c4f63', 'GIANNT');   // Lee's teal road bike
+  frameTex('frame_andy', '#c8202a', '#ffd400', 'BIANKY');
+  frameTex('frame_r1', '#f2f2f2', '#d62828', 'CANYUN', '#111');
+  frameTex('frame_r2', '#ffcc00', '#111', 'PINARELO', '#111');
+  frameTex('frame_r3', '#2a9d8f', '#fff', 'SPESHAL');
 
   // ---------- Will's head (r=12 body) — facing right ----------
   make(scene, 'head', 40, 40, (ctx) => {
@@ -339,6 +345,19 @@ export function makeTextures(scene: Phaser.Scene) {
     ctx.save(); ctx.translate((S2[0] + S1[0]) / 2, S1[1] + 0.5);
     ctx.fillStyle = '#fff'; ctx.font = 'italic 900 7px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('VIKNG', 0, 0);
     ctx.restore();
+  });
+
+
+  // Bunch riders (level 5)
+  const rivals: [string, string, string][] = [['#2c7be5', '#ffffff', '#2c7be5'], ['#ff7a1a', '#111111', '#ff7a1a'], ['#6a4c93', '#ffd400', '#6a4c93']];
+  rivals.forEach(([main, band, sleeve], i) => {
+    npcTorso(`torso_r${i + 1}`, (ctx, x0, y0, w, h) => {
+      ctx.fillStyle = '#151515'; ctx.fillRect(x0, y0, 12, h);
+      ctx.fillStyle = main; ctx.fillRect(x0 + 12, y0, w - 12, h);
+      ctx.fillStyle = band; ctx.fillRect(x0 + 22, y0 + h / 2 - 2, w - 22, 4);
+    });
+    make(scene, `arm_r${i + 1}`, 50, 14, (ctx) => capsule(ctx, 38, 7, 50, 14, [{ to: 0.4, color: sleeve }, { to: 1, color: SKIN }]));
+    npcHead(`head_r${i + 1}`, { hair: ['#2b1a0e', '#d9a066', '#111'][i], helmet: ['#ffffff', '#ff7a1a', '#222'][i], glasses: '#111', lens: ['#ff5fa2', '#5fd0ff', '#ffd400'][i], mouth: 'flat', stubble: 'rgba(0,0,0,.08)' });
   });
 
   // ================= Critters + people =================

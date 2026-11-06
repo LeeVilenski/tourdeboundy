@@ -26,7 +26,7 @@ The game is an original design in the ragdoll-physics genre. All art is drawn fo
 
 ### Lee Pollard (sidekick cameo, levels 2–4)
 - **Look:** tall and slim, dark shades, blue helmet with a cap underneath, black kit.
-- **Bike:** a navy and light-blue "VIKNG" tandem with the back seat empty.
+- **Bike:** a teal "GIANNT" road bike.
 - **Gag:** he rides alongside Will and keeps hitting bollards. He cartwheels off, dusts himself down and catches back up. The results screen shows a "Bollards hit: N" counter.
 - He can also act as an obstacle if Will is following him too closely.
 
@@ -87,7 +87,7 @@ Each level ends at a finish line. Will is handed a single pot of yoghurt as his 
 | 2 | **The MMM** | Mamhead loop: Exminster → Powderham → Starcross/Cockwood → climb to Mamhead → down through Kenn and Kennford | Flat estuary section with trains and the sea wall, then a brutal Mamhead climb and a steep wooded descent. Cars on blind bends. Lee joins and hits bollards in Kenn. | "Right, boxing session." |
 | 3 | **Haldon Descent** | Haldon Hill and forest | Long fast descent with gravel, dog walkers, pedestrians and cats, plus big jumps | "Just a quick 10k run." |
 | 4 | **Dartmoor (Nello-length)** | Open moor, endurance level | Cattle grids, sheep and ponies, wind gusts, rough tracks, a long run of climbs and descents. A distance counter ticks toward 100 miles. Lee shows up again. | "100 miles? Warm-up. Swim time." |
-| 5 | **Torbay Velodrome Showdown** | The sprint race where Will crashed | A circuit race with banked corners and barriers, ending in a sprint with Andy on his wheel. One corner has a "Will crashed here" plaque. | Final ending (see below) |
+| 5 | **Torbay Velodrome Showdown** | The sprint race where Will crashed | A 3-lap race in a bunch, with banked corners, crowds and a lap-2 pile-up, ending in a sprint with Andy on his wheel. One corner has a "Will crashed here" plaque. | Final ending (see below) |
 
 ### Ending
 Will beats Andy, stands on the podium and receives one pot of yoghurt. The Garmin flashes "REST", Will says "Nah, off for a run," and jogs out of shot. Andy mutters "tactical" in the background, and Lee hits one last bollard.

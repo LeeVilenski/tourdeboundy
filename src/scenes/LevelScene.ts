@@ -6,7 +6,7 @@ import { input, isTouch } from '../ui/input';
 import { hud } from '../ui/hud';
 import { RES } from '../textures';
 import { WILL_LINES, CRASH_LINES, GARMIN_MSGS, GARMIN_REPLIES, CAKE_LINES, LEE_JOIN, LEE_CRASH, LEE_LEAVE, ANDY_TAUNTS } from '../lines';
-import { NpcRider, LEE_LOOK, ANDY_LOOK } from '../entities/NpcRider';
+import { NpcRider, LEE_LOOK, ANDY_LOOK, RIVAL_LOOKS } from '../entities/NpcRider';
 import { WalkerKind } from '../levels/types';
 import { drawBackdrop, drawRoadside, drawDecor, groundColor } from './themes';
 import { sfx } from '../sfx';
@@ -72,6 +72,8 @@ export class LevelScene extends Phaser.Scene {
   andy?: { npc: NpcRider; state: 'sitting' | 'sprint' | 'done'; x: number; v: number; nextTaunt: number; bubble?: Phaser.GameObjects.Text; bubbleUntil: number };
   garminShows = 0;
   garminDone = false;
+  rivals: { npc: NpcRider; x: number; off: number; phase: number; state: 'riding' | 'down' }[] = [];
+  lapShown = 1;
   pickups: { body: Body; sprite: Phaser.GameObjects.Image; type: PickupType; taken: boolean }[] = [];
   overtakes: { triggerX: number; done: boolean }[] = [];
   passingCar?: Phaser.GameObjects.Image;
@@ -102,7 +104,7 @@ export class LevelScene extends Phaser.Scene {
     this.horses = []; this.cats = []; this.pickups = []; this.overtakes = []; this.cpFlags = [];
     this.passingCar = undefined; this.bubble = undefined;
     this.gusts = []; this.inGust = false; this.movers = []; this.lee = undefined; this.andy = undefined;
-    this.garminShows = 0; this.garminDone = false;
+    this.garminShows = 0; this.garminDone = false; this.rivals = []; this.lapShown = 1;
   }
 
   // ---------- terrain helpers ----------
@@ -158,7 +160,7 @@ export class LevelScene extends Phaser.Scene {
       if (this.paused || !this.rider) return;
       this.rider.step(this.finished ? { pedal: false, brake: true, leanBack: false, leanFwd: false, sprint: false } : input, this.time.now);
       // Lee and Andy move on the physics clock, so races stay fair on slow devices
-      if (!this.finished) { this.updateLee(this.time.now, 16.67); this.updateAndy(this.time.now, 16.67); }
+      if (!this.finished) { this.updateLee(this.time.now, 16.67); this.updateAndy(this.time.now, 16.67); this.updateBunch(this.time.now); }
       if (this.inGust && !this.rider.crashed) {
         const f = this.rider.totalMass() * 1.7e-4;
         this.matter.body.applyForce(this.rider.frame, this.rider.frame.position, { x: -f, y: 0 });
@@ -725,6 +727,10 @@ export class LevelScene extends Phaser.Scene {
   // ---------- cast: Lee + Andy ----------
   distText(x: number) {
     const start = this.def.checkpoints[0];
+    if (this.def.laps) {
+      const lap = Math.max(1, this.def.laps.filter((lx) => x >= lx).length);
+      return `LAP ${lap} / ${this.def.laps.length}`;
+    }
     if (this.def.miles) {
       const f = Phaser.Math.Clamp((x - start) / (this.def.finishX - start), 0, 1);
       return `${(f * this.def.miles).toFixed(1)} / ${this.def.miles} mi`;
@@ -744,6 +750,15 @@ export class LevelScene extends Phaser.Scene {
       const npc = new NpcRider(this, LEE_LOOK, 9, 0.92);
       npc.c.setVisible(false);
       this.lee = { npc, state: 'off', x: 0, hit: new Set(), downUntil: 0, bubbleUntil: 0 };
+    }
+    if (this.def.bunch) {
+      const offs = [-300, 200, 420];
+      RIVAL_LOOKS.forEach((look, i) => {
+        const npc = new NpcRider(this, look, 8.8, 0.9);
+        const x = this.def.checkpoints[0] + offs[i] * 0.4;
+        npc.place(x, (xx) => this.groundY(xx), -16);
+        this.rivals.push({ npc, x, off: offs[i], phase: i * 2, state: 'riding' });
+      });
     }
     if (this.def.boss) {
       const npc = new NpcRider(this, ANDY_LOOK, 9, 0.95);
@@ -845,6 +860,40 @@ export class LevelScene extends Phaser.Scene {
       }
     }
     a.npc.place(a.x, (x) => this.groundY(x), -10);
+  }
+
+  updateBunch(now: number) {
+    const B = this.def.bunch;
+    if (!B || !this.rivals.length) return;
+    const r = this.rider, finalKm = this.def.boss ? r.position.x > this.def.boss.sprintX - 600 : false;
+    let downCount = this.rivals.filter((q) => q.state === 'down').length;
+    for (const q of this.rivals) {
+      if (q.state === 'down') continue;
+      // ride around Will, drifting through the bunch; they fade in the final kilometre
+      const target = r.position.x + q.off + 120 * Math.sin(now * 0.0004 + q.phase) - (finalKm ? 900 : 0);
+      const v = Phaser.Math.Clamp((target - q.x) * 0.04, 2.5, finalKm ? 8 : Math.max(9, r.speed + 3));
+      q.x += v;
+      if (downCount < 2 && q.x > B.pileX - 60 && q.x < B.pileX + 40) {
+        q.state = 'down'; downCount++;
+        sfx.crash();
+        const gy = this.groundY(q.x);
+        const t = this.add.text(q.x, gy - 120, 'CRASH IN THE BUNCH!', { fontFamily: 'Arial Black, Arial', fontSize: '20px', color: '#fff', stroke: '#111', strokeThickness: 6 }).setOrigin(0.5).setDepth(40);
+        this.tweens.add({ targets: t, y: t.y - 40, alpha: 0, duration: 1600, onComplete: () => t.destroy() });
+        this.tweens.add({ targets: q.npc.c, angle: 160, y: gy - 55, duration: 500, ease: 'Bounce.out' });
+        continue;
+      }
+      q.npc.place(q.x, (x) => this.groundY(x), -16);
+    }
+    // lap announcements
+    const laps = this.def.laps;
+    if (laps) {
+      const lap = laps.filter((lx) => r.position.x >= lx).length;
+      if (lap > this.lapShown) {
+        this.lapShown = lap;
+        this.toast(lap === laps.length ? 'BELL LAP! 🔔' : `LAP ${lap}`);
+        if (lap === laps.length) { sfx.beep(); this.time.delayedCall(700, () => this.say('Last lap. Legs are fine. Legs are always fine.')); }
+      }
+    }
   }
 
   finish(lost = false) {

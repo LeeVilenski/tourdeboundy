@@ -3,7 +3,7 @@ import { RES } from '../textures';
 
 /** A drawn (non-physics) rider used for Lee and Andy. Faces right. */
 export interface NpcLook {
-  bike: 'frame' | 'tandem';
+  bike: string; // 'tandem' or a frame texture
   head: string;
   torso: string;
   arm: string;
@@ -90,5 +90,9 @@ export class NpcRider {
   destroy() { this.c.destroy(); }
 }
 
-export const LEE_LOOK: NpcLook = { bike: 'tandem', head: 'head_lee', torso: 'torso_lee', arm: 'arm_lee', thigh: 'thigh_dark', shin: 'shin' };
-export const ANDY_LOOK: NpcLook = { bike: 'frame', head: 'head_andy', torso: 'torso_andy', arm: 'arm_andy', thigh: 'thigh_dark', shin: 'shin_white' };
+export const LEE_LOOK: NpcLook = { bike: 'frame_lee', head: 'head_lee', torso: 'torso_lee', arm: 'arm_lee', thigh: 'thigh_dark', shin: 'shin' };
+export const ANDY_LOOK: NpcLook = { bike: 'frame_andy', head: 'head_andy', torso: 'torso_andy', arm: 'arm_andy', thigh: 'thigh_dark', shin: 'shin_white' };
+
+export const RIVAL_LOOKS: NpcLook[] = [1, 2, 3].map((i) => ({
+  bike: `frame_r${i}`, head: `head_r${i}`, torso: `torso_r${i}`, arm: `arm_r${i}`, thigh: 'thigh_dark', shin: i === 2 ? 'shin_white' : 'shin',
+}));
