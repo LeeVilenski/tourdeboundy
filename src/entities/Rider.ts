@@ -165,8 +165,8 @@ export class Rider {
       const sprinting = input.sprint && this.stamina > 0.02;
       if (sprinting) this.stamina = Math.max(0, this.stamina - 0.006);
       else this.stamina = Math.min(1, this.stamina + 0.0015);
-      const maxAV = sprinting ? 0.5 : boosted ? 0.46 : 0.36;
-      const accel = sprinting ? 0.03 : 0.018;
+      const maxAV = sprinting ? 0.58 : boosted ? 0.52 : 0.44;
+      const accel = sprinting ? 0.06 : 0.04;
       if (input.pedal || sprinting) {
         const av = this.rear.angularVelocity;
         if (av < maxAV) B.setAngularVelocity(this.rear, Math.min(maxAV, av + accel));
@@ -175,7 +175,7 @@ export class Rider {
         const fwd = { x: Math.cos(this.frame.angle), y: Math.sin(this.frame.angle) };
         const v = this.frame.velocity.x * fwd.x + this.frame.velocity.y * fwd.y;
         if (v < maxAV * WHEEL_R && this.wheelsDown()) {
-          const f = this.totalMass() * (sprinting ? 3.2e-4 : 2.4e-4);
+          const f = this.totalMass() * (sprinting ? 6e-4 : 4.5e-4);
           B.applyForce(this.frame, this.frame.position, { x: fwd.x * f, y: fwd.y * f });
         }
       }
@@ -187,8 +187,16 @@ export class Rider {
       // stability: settle the bike when on the ground and the player isn't leaning
       if (!lean && this.wheelsDown()) B.setAngularVelocity(this.frame, this.frame.angularVelocity * 0.8);
       if (lean) {
-        const av = this.frame.angularVelocity + lean * 0.006;
-        B.setAngularVelocity(this.frame, Phaser.Math.Clamp(av, -0.09, 0.09));
+        const cur = this.frame.angularVelocity;
+        const counter = Math.sign(cur) !== lean ? 2 : 1; // react faster when reversing a lean
+        const av = cur + lean * counter * (this.wheelsDown() ? 0.02 : 0.014);
+        B.setAngularVelocity(this.frame, Phaser.Math.Clamp(av, -0.16, 0.16));
+        // on the ground, leaning shifts weight: lean back lifts the front wheel, lean forward lifts the back
+        if (this.wheelsDown()) {
+          const wheel = lean < 0 ? this.front : this.rear;
+          const f = this.totalMass() * 1.5e-3;
+          B.applyForce(wheel, wheel.position, { x: 0, y: -f });
+        }
       }
       // animate pedalling by moving the foot anchor round the crank
       const p = this.crankPoint(this.crankAngle);
