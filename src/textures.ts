@@ -424,6 +424,51 @@ export function makeTextures(scene: Phaser.Scene) {
     ctx.fillStyle = '#ffd400'; ctx.fillRect(4, 22, 10, 30);
   });
 
+
+  // ================= Hazards =================
+  make(scene, 'collie', 64, 40, (ctx) => {
+    ctx.strokeStyle = OUTLINE; ctx.lineWidth = 2;
+    ctx.fillStyle = '#1d1d1d';
+    for (const [lx, a] of [[14, 0.4], [22, -0.3], [40, 0.3], [48, -0.4]]) { ctx.save(); ctx.translate(lx, 26); ctx.rotate(a); ctx.fillRect(-2, 0, 4, 13); ctx.restore(); }
+    ctx.beginPath(); ctx.ellipse(32, 22, 20, 9, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(46, 24, 7, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1d1d1d'; ctx.beginPath(); ctx.arc(54, 14, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(59, 16, 5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1d1d1d'; ctx.beginPath(); ctx.moveTo(50, 8); ctx.lineTo(52, 0); ctx.lineTo(56, 7); ctx.fill();
+    ctx.fillStyle = '#ff6b8b'; ctx.fillRect(58, 19, 4, 5);
+    ctx.strokeStyle = '#1d1d1d'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(13, 20); ctx.quadraticCurveTo(2, 12, 6, 6); ctx.stroke();
+  });
+  make(scene, 'gull', 70, 36, (ctx) => {
+    ctx.strokeStyle = OUTLINE; ctx.lineWidth = 2;
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(30, 22, 18, 9, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(14, 16, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffb000'; ctx.beginPath(); ctx.moveTo(8, 15); ctx.lineTo(0, 18); ctx.lineTo(8, 19); ctx.fill();
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(12, 14, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#9aa3ad'; ctx.beginPath(); ctx.moveTo(26, 18); ctx.quadraticCurveTo(46, -6, 66, 4); ctx.quadraticCurveTo(52, 12, 40, 22); ctx.closePath(); ctx.fill(); ctx.stroke();
+  });
+  make(scene, 'log', 90, 34, (ctx) => {
+    ctx.strokeStyle = OUTLINE; ctx.lineWidth = 2.5;
+    ctx.fillStyle = '#7a4f2a'; ctx.beginPath(); ctx.roundRect(4, 4, 76, 26, 12); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#c8955a'; ctx.beginPath(); ctx.ellipse(76, 17, 9, 13, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#8a5f3c'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(76, 17, 5, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#5a3a1e'; ctx.beginPath(); ctx.moveTo(14, 12); ctx.lineTo(40, 12); ctx.moveTo(24, 22); ctx.lineTo(56, 22); ctx.stroke();
+  });
+  make(scene, 'bale', 56, 56, (ctx) => {
+    ctx.fillStyle = '#e8c45a'; ctx.strokeStyle = '#8a6a1a'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(28, 28, 25, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.lineWidth = 1.5; for (let r = 6; r < 25; r += 6) { ctx.beginPath(); ctx.arc(28, 28, r, 0.3, 5.6); ctx.stroke(); }
+  });
+  make(scene, 'boulder', 56, 56, (ctx) => {
+    ctx.fillStyle = '#8c8f8a'; ctx.strokeStyle = '#4e504c'; ctx.lineWidth = 3;
+    ctx.beginPath(); for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI * 2, r = 22 + (i % 3) * 2; ctx.lineTo(28 + Math.cos(a) * r, 28 + Math.sin(a) * r); } ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#a8aba5'; ctx.beginPath(); ctx.arc(20, 20, 6, 0, Math.PI * 2); ctx.fill();
+  });
+  make(scene, 'branch', 120, 30, (ctx) => {
+    line(ctx, [[4, 18], [60, 14], [116, 16]], 7, '#6b4423');
+    line(ctx, [[40, 15], [56, 2]], 4, '#6b4423'); line(ctx, [[80, 15], [96, 28]], 4, '#6b4423');
+    ctx.fillStyle = '#2f6b35'; for (const [x, y] of [[56, 4], [100, 26], [114, 12], [20, 10]]) { ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill(); }
+  });
+
   // ---------- Misc ----------
   make(scene, 'blood', 8, 8, (ctx) => { ctx.fillStyle = '#c1121f'; ctx.beginPath(); ctx.arc(4, 4, 3.5, 0, Math.PI * 2); ctx.fill(); });
   make(scene, 'spark', 8, 8, (ctx) => { ctx.fillStyle = '#fff4a3'; ctx.beginPath(); ctx.arc(4, 4, 3.5, 0, Math.PI * 2); ctx.fill(); });

@@ -72,8 +72,8 @@ export class MenuScene extends Phaser.Scene {
     });
 
     const help = isTouch()
-      ? 'Left thumb: ↺ ↻ lean · Right thumb: pedal, brake, ⚡ sprint · Tap the Garmin to ignore it'
-      : '↑/W pedal · ↓/S brake · ←/→ lean · SHIFT sprint · G ignore Garmin · R restart · P pause';
+      ? 'Left thumb: ↺ ↻ lean · Right thumb: pedal, HOP, brake, ⚡ sprint · Lean in the air to flip!'
+      : '↑/W pedal · ↓/S brake · ←/→ lean (flip in the air!) · SPACE hop · SHIFT sprint · G Garmin · R restart';
     this.add.text(W / 2, 410, help, {
       fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '19px', color: '#fff', backgroundColor: '#1d2b4fcc', padding: { x: 14, y: 8 },
     }).setOrigin(0.5);

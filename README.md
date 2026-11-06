@@ -13,5 +13,5 @@ Open the printed URL. Add `?level=3` to jump straight into a level, `?all` to un
 Import the repo in Vercel. It detects Vite automatically: build command `npm run build`, output folder `dist`.
 
 ## Controls
-- Desktop: ↑/W pedal · ↓/S brake · ←/→ lean · Shift sprint · G ignore Garmin · R restart · P pause
+- Desktop: ↑/W pedal · ↓/S brake · ←/→ lean · Space hop · Shift sprint · G ignore Garmin · R restart · P pause
 - Mobile: on-screen buttons (landscape)

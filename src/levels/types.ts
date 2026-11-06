@@ -10,11 +10,17 @@ export type ObstacleDef =
   | { type: 'horse'; x: number; exitX: number }
   | { type: 'walker'; x: number; exitX: number; who: WalkerKind } // lets you past if you ease off
   | { type: 'gust'; x: number; len: number }                      // headwind zone
-  | { type: 'gravel'; x: number; len: number }                    // low grip
+  | { type: 'gravel'; x: number; len: number; oil?: boolean }     // low grip (oil = diesel spill look)
+  | { type: 'log'; x: number }                                    // hop it
+  | { type: 'door'; x: number }                                   // parked van whose door swings open
+  | { type: 'roller'; x: number; kind: 'bale' | 'boulder' }       // keeps rolling down the hill at you
+  | { type: 'dog'; x: number }                                    // chases you: sprint away
+  | { type: 'branch'; x: number }                                 // drops from a tree as you pass
+  | { type: 'gulls'; x: number; len: number }                     // seagulls swoop to nick yoghurt
   | { type: 'hazard'; x: number; len: number; kind: 'water' | 'mud' | 'bog' } // pit floor: crash on touch
   | { type: 'car'; x: number }       // parked car, rideable over the top
   | { type: 'trailer'; x: number }   // hay trailer with bale ramp
-  | { type: 'kicker'; x: number; h: number; len: number }
+  | { type: 'kicker'; x: number; h: number; len: number; big?: boolean } // big = 'SEND IT' flip ramp
   | { type: 'overtake'; triggerX: number }; // car passes, horn only
 
 export type PickupType = 'gel' | 'coffee' | 'yoghurt' | 'cake';

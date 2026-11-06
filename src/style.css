@@ -36,6 +36,8 @@ html, body { margin: 0; height: 100%; background: #1d2b4f; overflow: hidden;
 #touch button small { font-size: 10px; letter-spacing: 1px; }
 #touch button.pedal { width: 96px; height: 96px; background: rgba(40,160,70,.7); }
 #touch button.sprint { background: rgba(230,150,0,.7); }
+#touch .stack { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+#touch button.hop { width: 70px; height: 70px; background: rgba(44,123,229,.75); }
 #touch button.down { transform: scale(.92); filter: brightness(1.4); }
 
 #rotate { display: none; position: fixed; inset: 0; background: #1d2b4f; z-index: 50; flex-direction: column;
@@ -47,4 +49,6 @@ html, body { margin: 0; height: 100%; background: #1d2b4f; overflow: hidden;
   .garmin-msg { font-size: 12px; }
   #touch button { width: 64px; height: 64px; }
   #touch button.pedal { width: 82px; height: 82px; }
+  #touch button.hop { width: 58px; height: 58px; }
+  #touch .stack { gap: 6px; }
 }

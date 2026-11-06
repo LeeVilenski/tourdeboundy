@@ -5,7 +5,7 @@ type Body = MatterJS.BodyType;
 type Constraint = MatterJS.ConstraintType;
 type Vec = { x: number; y: number };
 
-export interface Controls { pedal: boolean; brake: boolean; leanBack: boolean; leanFwd: boolean; sprint: boolean }
+export interface Controls { pedal: boolean; brake: boolean; leanBack: boolean; leanFwd: boolean; sprint: boolean; hop: boolean; hopAt?: number }
 
 const GROUP = -7; // bike and rider parts never collide with each other
 
@@ -167,7 +167,18 @@ export class Rider {
   private mass = 0;
   totalMass() { return this.mass ||= this.parts.reduce((m, p) => m + p.body.mass, 0); }
   groundContacts = 0;
-  wheelsDown() { return this.groundContacts > 0; }
+  rearDown = false;
+  frontDown = false;
+  leanAmt = 0;
+  hopHeld = false;
+  lastHop = -100;
+  stepCount = 0;
+  lastRear = -99;
+  lastFront = -99;
+  /** Contact is smoothed over a few steps so tiny bounces don't count as being airborne. */
+  wheelsDown() { return this.stepCount - Math.max(this.lastRear, this.lastFront) <= 5; }
+  rearOn() { return this.stepCount - this.lastRear <= 5; }
+  frontOn() { return this.stepCount - this.lastFront <= 5; }
 
   get position(): Vec { return this.frame.position; }
   get speed(): number { return this.frame.velocity.x; }
@@ -175,52 +186,79 @@ export class Rider {
   /** Controls — called once per physics step. */
   step(input: Controls, now: number) {
     const B = this.scene.matter.body;
+    this.stepCount++;
     if (!this.crashed) {
       const boosted = now < this.boostUntil;
       const sprinting = input.sprint && this.stamina > 0.02;
       if (sprinting) this.stamina = Math.max(0, this.stamina - 0.006);
       else this.stamina = Math.min(1, this.stamina + 0.0015);
       const maxAV = sprinting ? 0.58 : boosted ? 0.52 : 0.44;
-      const accel = sprinting ? 0.06 : 0.04;
+      const grounded = this.wheelsDown();
       if (input.pedal || sprinting) {
+        // ease up to speed: strong push from slow, tapering near the top
         const av = this.rear.angularVelocity;
+        const accel = (sprinting ? 0.07 : 0.05) * Math.max(0.15, 1 - av / maxAV);
         if (av < maxAV) B.setAngularVelocity(this.rear, Math.min(maxAV, av + accel));
         // leg power: a push along the frame so climbs are rideable
         const fwd = { x: Math.cos(this.frame.angle), y: Math.sin(this.frame.angle) };
         const v = this.frame.velocity.x * fwd.x + this.frame.velocity.y * fwd.y;
-        if (v < maxAV * WHEEL_R && this.wheelsDown()) {
+        if (v < maxAV * WHEEL_R && grounded) {
           const f = this.totalMass() * (sprinting ? 6e-4 : 4.5e-4);
           B.applyForce(this.frame, this.frame.position, { x: fwd.x * f, y: fwd.y * f });
         }
       }
       if (input.brake) {
-        for (const wh of [this.rear, this.front]) B.setAngularVelocity(wh, wh.angularVelocity * 0.85);
+        for (const wh of [this.rear, this.front]) B.setAngularVelocity(wh, wh.angularVelocity * 0.92);
         if (Math.abs(this.speed) < 0.6) B.setAngularVelocity(this.rear, -0.08);
       }
+      // hop (bunny hop): pop both wheels off the ground
+      // a tap is remembered briefly so it can't fall between physics steps
+      const hopTapped = !!input.hopAt && performance.now() - input.hopAt < 180;
+      if (hopTapped && grounded && this.stepCount - this.lastHop > 20) {
+        input.hopAt = 0;
+        this.lastHop = this.stepCount;
+        const up = 6.2;
+        for (const { body } of this.parts) B.setVelocity(body, { x: body.velocity.x, y: body.velocity.y - up });
+        this.scene.events.emit('hop');
+      }
+
       const lean = (input.leanBack ? -1 : 0) + (input.leanFwd ? 1 : 0);
+      // lean builds up over a few frames, so taps make small corrections and holds make big ones
+      this.leanAmt += (lean - this.leanAmt) * 0.18;
       const cur = this.frame.angularVelocity;
-      const grounded = this.wheelsDown();
-      if (lean) {
-        // weight shift: one wheel up, the other down (a turning push with no net lift)
-        const tooFar = grounded && lean * this.frame.angle > 0.9; // stop wheelies/stoppies at ~50 degrees
-        const reversing = Math.sign(cur) !== lean;
-        if (!tooFar && Math.abs(cur) < (grounded ? 0.09 : 0.05) || reversing) {
-          const f = this.totalMass() * (reversing ? 1.3e-3 : 9e-4) * (grounded ? 1 : 0.45);
-          const up = lean < 0 ? this.front : this.rear, down = lean < 0 ? this.rear : this.front;
+      const L = this.leanAmt;
+      if (!grounded) {
+        // in the air: spin bike + rider together like one body (flips!)
+        const target = Math.abs(L) > 0.05 ? L * 0.21 : cur * 0.95;
+        this.spin(Phaser.Math.Clamp(target - cur, -0.022, 0.022));
+      } else if (Math.abs(L) > 0.05) {
+        const dir = Math.sign(L);
+        const tooFar = dir * this.frame.angle > 0.9; // stop wheelies/stoppies at ~50 degrees
+        const reversing = Math.sign(cur) !== dir;
+        if ((!tooFar && Math.abs(cur) < 0.09) || reversing) {
+          const f = this.totalMass() * Math.abs(L) * (reversing ? 1.3e-3 : 9e-4);
+          const up = dir < 0 ? this.front : this.rear, down = dir < 0 ? this.rear : this.front;
           B.applyForce(up, up.position, { x: 0, y: -f });
           B.applyForce(down, down.position, { x: 0, y: f });
         }
       } else {
-        // let go: settle on the ground, keep a gentle spin in the air
-        if (grounded) B.setAngularVelocity(this.frame, cur * 0.8);
-        else if (Math.abs(cur) > 0.004) {
-          // in the air, gently stop the spin (the rider's weight keeps it going otherwise)
-          const f = this.totalMass() * 2.2e-3 * Math.min(1, Math.abs(cur) / 0.02);
-          const up = cur < 0 ? this.rear : this.front, down = cur < 0 ? this.front : this.rear;
-          B.applyForce(up, up.position, { x: 0, y: -f });
-          B.applyForce(down, down.position, { x: 0, y: f });
-        }
+        B.setAngularVelocity(this.frame, cur * 0.85);
       }
+    }
+  }
+
+
+  /** Add angular velocity dw to the whole bike + rider around their shared centre. */
+  private spin(dw: number) {
+    if (!dw) return;
+    const B = this.scene.matter.body;
+    let m = 0, cx = 0, cy = 0;
+    for (const { body } of this.parts) { m += body.mass; cx += body.position.x * body.mass; cy += body.position.y * body.mass; }
+    cx /= m; cy /= m;
+    for (const { body } of this.parts) {
+      const v = body.velocity;
+      B.setVelocity(body, { x: v.x - dw * (body.position.y - cy), y: v.y + dw * (body.position.x - cx) });
+      B.setAngularVelocity(body, body.angularVelocity + dw);
     }
   }
 

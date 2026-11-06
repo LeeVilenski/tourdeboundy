@@ -35,6 +35,12 @@ export interface RunStats {
   hasLee: boolean;
   bollards: number;
   boss: 'won' | 'lost' | null;
+  trickPoints: number;
+  flips: number;
+  hasDog: boolean;
+  bites: number;
+  hasGulls: boolean;
+  stolen: number;
 }
 
 const WALKERS: Record<WalkerKind, { tex: string; w: number; h: number; texH: number; speed: number; ask: string; thanks: string; hit: string }> = {
@@ -74,6 +80,19 @@ export class LevelScene extends Phaser.Scene {
   garminDone = false;
   rivals: { npc: NpcRider; x: number; off: number; phase: number; state: 'riding' | 'down' }[] = [];
   lapShown = 1;
+  // tricks
+  airborne = false; airStart = 0; airRot = 0; lastAngle = 0; wheelieSteps = 0;
+  pendingTrick?: { at: number; pts: number; label: string };
+  camOff = -220; camZoom = 1;
+  // hazards
+  physSteps = 0;
+  doors: { x: number; trigger: number; state: 'shut' | 'open' | 'done'; shutAt?: number; body?: Body; door: Phaser.GameObjects.Rectangle; lights: Phaser.GameObjects.Graphics }[] = [];
+  rollers: { x: number; kind: 'bale' | 'boulder'; next: number; live: { body: Body; sprite: Phaser.GameObjects.Image; born: number }[] }[] = [];
+  dogs: { x: number; state: 'wait' | 'chase' | 'done'; dx: number; until: number; biteCool: number; bitten?: number; sprite: Phaser.GameObjects.Image }[] = [];
+  branches: { x: number; trigger: number; dropped: boolean }[] = [];
+  gullZones: { x: number; len: number; next: number }[] = [];
+  gulls: { sprite: Phaser.GameObjects.Image; y0: number; done: boolean }[] = [];
+  props: { body: Body; sprite: Phaser.GameObjects.Image }[] = [];
   pickups: { body: Body; sprite: Phaser.GameObjects.Image; type: PickupType; taken: boolean }[] = [];
   overtakes: { triggerX: number; done: boolean }[] = [];
   passingCar?: Phaser.GameObjects.Image;
@@ -98,6 +117,9 @@ export class LevelScene extends Phaser.Scene {
       politePasses: 0, walkersBumped: 0,
       hasLee: !!this.def.lee, bollards: 0,
       boss: null,
+      trickPoints: 0, flips: 0,
+      hasDog: this.def.obstacles.some((o) => o.type === 'dog'), bites: 0,
+      hasGulls: this.def.obstacles.some((o) => o.type === 'gulls'), stolen: 0,
     };
     this.lastCp = this.def.checkpoints[0];
     this.finished = false; this.paused = false; this.respawnAt = 0; this.elapsed = 0;
@@ -105,6 +127,8 @@ export class LevelScene extends Phaser.Scene {
     this.passingCar = undefined; this.bubble = undefined;
     this.gusts = []; this.inGust = false; this.movers = []; this.lee = undefined; this.andy = undefined;
     this.garminShows = 0; this.garminDone = false; this.rivals = []; this.lapShown = 1;
+    this.airborne = false; this.wheelieSteps = 0; this.pendingTrick = undefined; this.camOff = -220; this.camZoom = 1;
+    this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
   }
 
   // ---------- terrain helpers ----------
@@ -158,21 +182,32 @@ export class LevelScene extends Phaser.Scene {
     // controls run once per physics step, so the feel is the same at any screen refresh rate
     this.matter.world.on('beforeupdate', () => {
       if (this.paused || !this.rider) return;
-      this.rider.step(this.finished ? { pedal: false, brake: true, leanBack: false, leanFwd: false, sprint: false } : input, this.time.now);
+      this.rider.step(this.finished ? { pedal: false, brake: true, leanBack: false, leanFwd: false, sprint: false, hop: false } : input, this.time.now);
       // Lee and Andy move on the physics clock, so races stay fair on slow devices
       if (!this.finished) { this.updateLee(this.time.now, 16.67); this.updateAndy(this.time.now, 16.67); this.updateBunch(this.time.now); }
+      this.physSteps++;
+      this.stepTricks();
+      this.stepHazards();
       if (this.inGust && !this.rider.crashed) {
         const f = this.rider.totalMass() * 1.7e-4;
         this.matter.body.applyForce(this.rider.frame, this.rider.frame.position, { x: -f, y: 0 });
       }
     });
     this.matter.world.on('collisionactive', (e: Phaser.Physics.Matter.Events.CollisionActiveEvent) => {
-      let n = 0;
+      let n = 0, rear = false, front = false;
       for (const pair of e.pairs) {
         const a = pair.bodyA as Body, b = pair.bodyB as Body;
-        if ((a.label === 'wheel' && b.label === 'ground') || (b.label === 'wheel' && a.label === 'ground')) n++;
+        const wheel = a.label === 'wheel' && b.label !== 'pickup' && b.label !== 'hazard' && !b.isSensor ? a : b.label === 'wheel' && a.label !== 'pickup' && a.label !== 'hazard' && !a.isSensor ? b : null;
+        if (!wheel) continue;
+        n++;
+        if (wheel === this.rider.rear) rear = true;
+        if (wheel === this.rider.front) front = true;
       }
       this.rider.groundContacts = n;
+      this.rider.rearDown = rear;
+      this.rider.frontDown = front;
+      if (rear) this.rider.lastRear = this.rider.stepCount;
+      if (front) this.rider.lastFront = this.rider.stepCount;
     });
 
     // ---------- HUD ----------
@@ -186,6 +221,7 @@ export class LevelScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-R', () => { if (!this.finished && !this.paused) this.crashOrRespawn(true); });
     this.events.once('shutdown', () => { hud.hide(); this.matter.world?.off('collisionstart'); this.matter.world?.off('collisionactive'); this.matter.world?.off('beforeupdate'); });
 
+    this.events.on('hop', () => sfx.click());
     this.startTime = this.time.now;
     this.garminNext = this.time.now + 7000;
     this.banner(`LEVEL ${this.def.id}: ${this.def.name.toUpperCase()}`, this.def.subtitle);
@@ -232,6 +268,14 @@ export class LevelScene extends Phaser.Scene {
     for (const o of this.def.obstacles) {
       if (o.type !== 'gravel') continue;
       const seg = t.filter((p) => p.x >= o.x && p.x <= o.x + o.len);
+      if (o.oil) {
+        ground.lineStyle(9, 0x111118, 1).strokePoints(seg.map((p) => ({ x: p.x, y: p.y + 4 })));
+        ground.lineStyle(2, 0x8a6bd1, 0.8).strokePoints(seg.map((p) => ({ x: p.x, y: p.y + 2 })));
+        ground.lineStyle(2, 0x3ec7c7, 0.6).strokePoints(seg.map((p) => ({ x: p.x, y: p.y + 6 })));
+        const lx = o.x + o.len / 2;
+        this.add.text(lx, this.groundY(lx) - 140, '⚠ OIL', { fontFamily: 'Arial Black, Arial', fontSize: '14px', color: '#111', backgroundColor: '#ffd400', padding: { x: 5, y: 2 } }).setOrigin(0.5).setDepth(4);
+        continue;
+      }
       ground.lineStyle(10, 0xb89a6a, 1).strokePoints(seg.map((p) => ({ x: p.x, y: p.y + 4 })));
       const rnd = new Phaser.Math.RandomDataGenerator(['gravel' + o.x]);
       for (let x = o.x; x < o.x + o.len; x += 9) {
@@ -260,9 +304,10 @@ export class LevelScene extends Phaser.Scene {
       const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy);
       const nx = -dy / len, ny = dx / len;
       const mx = (a.x + b.x) / 2;
-      const gravel = this.def.obstacles.some((o) => o.type === 'gravel' && mx >= o.x && mx <= o.x + o.len);
+      const gz = this.def.obstacles.find((o) => o.type === 'gravel' && mx >= o.x && mx <= o.x + o.len) as { oil?: boolean } | undefined;
+      const gravel = !!gz;
       this.matter.add.rectangle(mx + nx * T / 2, (a.y + b.y) / 2 + ny * T / 2, len + 4, T, {
-        isStatic: true, angle: Math.atan2(dy, dx), label: 'ground', friction: gravel ? 0.12 : 1, frictionStatic: gravel ? 0.3 : 10,
+        isStatic: true, angle: Math.atan2(dy, dx), label: 'ground', friction: gravel ? (gz!.oil ? 0.04 : 0.12) : 1, frictionStatic: gravel ? (gz!.oil ? 0.05 : 0.3) : 10,
       });
     }
     if (!walls) return;
@@ -300,6 +345,10 @@ export class LevelScene extends Phaser.Scene {
         g.beginPath(); g.moveTo(pts[0].x, pts[0].y);
         for (const p of pts) g.lineTo(p.x, p.y);
         g.closePath(); g.fillPath(); g.strokePath();
+        if (o.big) {
+          g.fillStyle(0xffd400, 1).fillRect(o.x + o.len - 8, gy2 - o.h - 2, 8, o.h + 2);
+          this.add.text(o.x + o.len / 2, gy - o.h - 70, 'SEND IT ⤴', { fontFamily: 'Arial Black, Arial', fontSize: '15px', color: '#111', backgroundColor: '#ffd400', padding: { x: 6, y: 3 } }).setOrigin(0.5).setDepth(7);
+        }
         g.lineStyle(2, 0x8a5f3c, 1);
         for (let i = 1; i < 4; i++) g.lineBetween(o.x + o.len * i / 4, gy - o.h * (i / 4) ** 2 + 4, o.x + o.len * i / 4, gy2);
       } else if (o.type === 'car') {
@@ -359,6 +408,26 @@ export class LevelScene extends Phaser.Scene {
         const sprite = this.add.image(o.x, gy - w.texH / 2, w.tex).setScale(1 / RES).setDepth(9);
         const label = this.add.text(o.x, gy - w.texH - 20, w.ask, { fontFamily: 'Arial Black, Arial', fontSize: '14px', color: '#111', backgroundColor: '#fff', padding: { x: 5, y: 3 } }).setOrigin(0.5).setDepth(9).setAlpha(0);
         this.horses.push({ body, sprite, exitX: o.exitX, wait: 0, gone: false, label, who });
+      } else if (o.type === 'log') {
+        const gy = this.groundY(o.x);
+        this.matter.add.rectangle(o.x, gy - 16, 74, 32, { isStatic: true, label: 'ground', chamfer: { radius: 4 }, friction: 1 });
+        this.add.image(o.x, gy - 16, 'log').setScale(1.1 / RES, 1.15 / RES).setDepth(7);
+      } else if (o.type === 'door') {
+        const gy = this.groundY(o.x);
+        this.add.image(o.x - 60, gy - 2, 'van').setScale(0.5 / RES * 1.6).setOrigin(0.5, 1).setDepth(3);
+        const door = this.add.rectangle(o.x, gy - 72, 10, 56, 0xf2f2f2).setStrokeStyle(3, 0x111111).setOrigin(0.5, 0).setDepth(8).setScale(0.15, 1);
+        const lights = this.add.graphics().setDepth(4);
+        this.doors.push({ x: o.x, trigger: Phaser.Math.Between(260, 420), state: 'shut', door, lights });
+      } else if (o.type === 'roller') {
+        this.rollers.push({ x: o.x, kind: o.kind, next: 0, live: [] });
+      } else if (o.type === 'dog') {
+        const gy = this.groundY(o.x);
+        const sprite = this.add.image(o.x + 40, gy - 50, 'collie').setScale(1 / RES).setDepth(3).setFlipX(true);
+        this.dogs.push({ x: o.x, state: 'wait', dx: 0, until: 0, biteCool: 0, sprite });
+      } else if (o.type === 'branch') {
+        this.branches.push({ x: o.x, trigger: Phaser.Math.Between(200, 320), dropped: false });
+      } else if (o.type === 'gulls') {
+        this.gullZones.push({ x: o.x, len: o.len, next: 0 });
       } else if (o.type === 'gust') {
         this.gusts.push({ x: o.x, len: o.len });
       } else if (o.type === 'hazard') {
@@ -447,6 +516,8 @@ export class LevelScene extends Phaser.Scene {
         if (ol === 'cat') { this.launchCat(other); continue; }
         if (ol === 'horse') { this.hitWalker(other); continue; }
         if (ol === 'hazard') { this.splosh(); continue; }
+        if (ol === 'door') { this.bigText(mine.position.x, mine.position.y - 60, 'DOORED!'); this.doCrash('head'); continue; }
+        if (ol === 'hard' && (mine.label === 'head' || mine.label === 'torso')) { this.doCrash('head'); continue; }
         if (ol === 'ground' && (mine.label === 'head' || mine.label === 'torso')) {
           this.doCrash('head');
         }
@@ -602,6 +673,12 @@ export class LevelScene extends Phaser.Scene {
 
     const pos = r.crashed ? r.head.position : r.position;
     this.camTarget.setPosition(pos.x, pos.y);
+    // camera looks further ahead and pulls back a touch as you speed up
+    const spd = r.crashed ? 0 : Phaser.Math.Clamp(r.speed, 0, 13);
+    this.camOff += (-220 - spd * 16 - this.camOff) * 0.04;
+    this.camZoom += (1 - Math.max(0, spd - 6) * 0.013 - this.camZoom) * 0.03;
+    this.cameras.main.setFollowOffset(this.camOff, 70).setZoom(this.camZoom);
+    this.updateHazards(now, dt);
 
     if (!this.finished) {
       this.elapsed = now - this.startTime;
@@ -894,6 +971,190 @@ export class LevelScene extends Phaser.Scene {
         if (lap === laps.length) { sfx.beep(); this.time.delayedCall(700, () => this.say('Last lap. Legs are fine. Legs are always fine.')); }
       }
     }
+  }
+
+  bigText(x: number, y: number, text: string, color = '#ffd400') {
+    const t = this.add.text(x, y, text, { fontFamily: 'Arial Black, Arial', fontSize: '36px', color, stroke: '#111', strokeThickness: 8 }).setOrigin(0.5).setDepth(40);
+    this.tweens.add({ targets: t, y: y - 50, alpha: 0, duration: 1200, onComplete: () => t.destroy() });
+  }
+
+  /** Runs every physics step: detects flips, big air, wheelies and clean landings. */
+  stepTricks() {
+    const R = this.rider;
+    if (!R || R.crashed || this.finished) { this.airborne = false; this.pendingTrick = undefined; return; }
+    const step = R.stepCount;
+    if (this.pendingTrick && step >= this.pendingTrick.at) {
+      const t = this.pendingTrick; this.pendingTrick = undefined;
+      this.stats.trickPoints += t.pts;
+      this.trickToast(`${t.label}  +${t.pts}`);
+    }
+    const air = !R.wheelsDown();
+    if (air) {
+      if (!this.airborne) { this.airborne = true; this.airStart = step; this.airRot = 0; this.lastAngle = R.frame.angle; }
+      this.airRot += Phaser.Math.Angle.Wrap(R.frame.angle - this.lastAngle);
+      this.lastAngle = R.frame.angle;
+    } else if (this.airborne) {
+      this.airborne = false;
+      const airSteps = step - this.airStart;
+      const flips = Math.floor((Math.abs(this.airRot) + 1.2) / (Math.PI * 2));
+      const parts: string[] = []; let pts = 0;
+      if (flips > 0) {
+        const name = this.airRot < 0 ? 'BACKFLIP' : 'FRONTFLIP';
+        parts.push(flips === 1 ? name : flips === 2 ? `DOUBLE ${name}` : `${flips}x ${name}`);
+        pts += 600 * flips * flips;
+        this.stats.flips += flips;
+      }
+      if (airSteps > 55) { parts.push('BIG AIR'); pts += Math.round(airSteps * 4); }
+      const slope = Math.atan2(this.groundY(R.position.x + 40) - this.groundY(R.position.x - 40), 80);
+      if (airSteps > 30 && Math.abs(Phaser.Math.Angle.Wrap(R.frame.angle - slope)) < 0.3) {
+        parts.push('CLEAN LANDING'); pts += 100;
+        R.boost(800);
+      }
+      // only paid out if he's still upright a moment later
+      if (pts > 0) this.pendingTrick = { at: step + 25, pts, label: parts.join(' + ') };
+    }
+    // wheelies
+    if (R.rearOn() && !R.frontOn() && R.frame.angle < -0.25) this.wheelieSteps++;
+    else {
+      if (this.wheelieSteps > 70) {
+        const pts = Math.round(this.wheelieSteps * 3);
+        this.stats.trickPoints += pts;
+        this.trickToast(`WHEELIE ${(this.wheelieSteps / 60).toFixed(1)}s  +${pts}`);
+      }
+      this.wheelieSteps = 0;
+    }
+  }
+
+  trickToast(text: string) {
+    sfx.pickup();
+    const cam = this.cameras.main;
+    const t = this.add.text(cam.width / 2, cam.height * 0.24, text, {
+      fontFamily: 'Arial Black, Arial', fontSize: '34px', color: '#7CFC8A', stroke: '#111', strokeThickness: 8,
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(55).setScale(0.3);
+    this.tweens.add({ targets: t, scale: 1, duration: 260, ease: 'Back.out' });
+    this.tweens.add({ targets: t, y: t.y - 40, alpha: 0, delay: 900, duration: 500, onComplete: () => t.destroy() });
+  }
+
+  /** Movement for chasers, once per physics step (fair on slow devices). */
+  stepHazards() {
+    const r = this.rider;
+    if (!r) return;
+    for (const d of this.dogs) if (d.state === 'chase') d.dx += 9.2;
+    for (const g of this.gulls) if (!g.done && g.sprite.active) g.sprite.x -= 7;
+  }
+
+  updateHazards(now: number, dt: number) {
+    const r = this.rider, rx = r.position.x, gy = (x: number) => this.groundY(x), f = dt / 16.67;
+    // car doors: hazard lights blink as you approach, then the door swings out
+    for (const d of this.doors) {
+      const gap = d.x - rx;
+      d.lights.clear();
+      if (d.state === 'shut' && gap < 800 && gap > 0 && Math.floor(now / 250) % 2) {
+        d.lights.fillStyle(0xffa500, 1).fillCircle(d.x - 6, gy(d.x) - 30, 6).fillCircle(d.x - 230, gy(d.x) - 30, 6);
+      }
+      if (d.state === 'open' && this.physSteps > d.shutAt!) {
+        if (d.body) this.matter.world.remove(d.body);
+        d.body = undefined; d.state = 'done';
+        this.tweens.add({ targets: d.door, scaleX: 0.15, x: d.x, duration: 220 });
+      }
+      if (d.state === 'shut' && gap < d.trigger && gap > 0 && !r.crashed) {
+        d.state = 'open';
+        sfx.bad();
+        this.tweens.add({ targets: d.door, scaleX: 3.5, x: d.x + 14, duration: 180 });
+        d.body = this.matter.add.rectangle(d.x + 18, gy(d.x) - 44, 30, 56, { isStatic: true, label: 'door' }) as Body;
+        d.shutAt = this.physSteps + 100;
+        this.time.delayedCall(300, () => this.say('WHOA, DOOR!'));
+      }
+    }
+    // rolling bales/boulders: keep coming while you're near
+    for (const ro of this.rollers) {
+      if (rx > ro.x - 1500 && rx < ro.x - 380 && now > ro.next && !r.crashed) {
+        ro.next = now + Phaser.Math.Between(3200, 4600);
+        const R = 22;
+        const body = this.matter.add.circle(ro.x, gy(ro.x) - R - 4, R, { label: 'hard', density: ro.kind === 'boulder' ? 0.006 : 0.003, friction: 0.5, restitution: 0.25 }) as Body;
+        this.matter.body.setVelocity(body, { x: -3.5, y: 0 });
+        const sprite = this.add.image(ro.x, gy(ro.x) - R, ro.kind).setScale(0.82 / RES).setDepth(12);
+        ro.live.push({ body, sprite, born: now });
+      }
+      ro.live = ro.live.filter((l) => {
+        l.sprite.setPosition(l.body.position.x, l.body.position.y).setRotation(l.body.angle);
+        // once it's stopped rolling it crumbles away, so nothing can pin you in place
+        const stuck = now - l.born > 1500 && Math.hypot(l.body.velocity.x, l.body.velocity.y) < 0.8;
+        if (stuck || now - l.born > 14000 || l.body.position.x < rx - 1200 || l.body.position.y > gy(l.body.position.x) + 300) {
+          if (stuck) this.sparks.explode(10, l.body.position.x, l.body.position.y);
+          this.matter.world.remove(l.body); l.sprite.destroy(); return false;
+        }
+        return true;
+      });
+    }
+    // dogs: burst out of a gate and chase
+    for (const d of this.dogs) {
+      if (d.state === 'wait') {
+        if (rx > d.x && !r.crashed && r.speed > 3) {
+          d.state = 'chase'; d.dx = rx - 260; d.until = this.physSteps + 390;
+          d.sprite.setFlipX(false).setDepth(12);
+          this.bigText(rx - 200, gy(rx) - 120, 'WOOF!', '#fff');
+          this.time.delayedCall(400, () => this.say('DOG! Sprint!'));
+        }
+        continue;
+      }
+      if (d.state === 'done') continue;
+      // (d.dx advances in stepHazards, on the physics clock)
+      d.sprite.setPosition(d.dx, gy(d.dx) - 10 + Math.abs(Math.sin(now * 0.03)) * -6);
+      if (!r.crashed && d.dx > rx - 60 && this.physSteps > d.biteCool) {
+        d.biteCool = this.physSteps + 90;
+        d.bitten = (d.bitten ?? 0) + 1;
+        this.stats.bites++;
+        r.stamina = Math.max(0, r.stamina - 0.35);
+        for (const part of r.parts) this.matter.body.setVelocity(part.body, { x: part.body.velocity.x * 0.75, y: part.body.velocity.y });
+        sfx.meow();
+        this.bigText(rx - 40, gy(rx) - 130, 'NIPPED!', '#ff6b6b');
+        d.dx -= 260;
+        if (d.bitten >= 2) d.until = 0; // satisfied
+      }
+      if (this.physSteps > d.until || r.crashed) {
+        d.state = 'done';
+        this.tweens.add({ targets: d.sprite, alpha: 0, duration: 800 });
+        if (!r.crashed && !d.bitten) this.time.delayedCall(200, () => this.say('Ha! Outsprinted a collie.'));
+      }
+    }
+    // branches drop as you approach
+    for (const b of this.branches) {
+      if (!b.dropped && rx > b.x - b.trigger && !r.crashed) {
+        b.dropped = true;
+        const top = gy(b.x) - 360;
+        this.bigText(b.x, top + 40, 'CREAK!', '#fff');
+        const body = this.matter.add.rectangle(b.x, top, 108, 14, { label: 'hard', density: 0.002, friction: 0.8, angle: 0.2 }) as Body;
+        const sprite = this.add.image(b.x, top, 'branch').setScale(1 / RES).setDepth(12);
+        this.props.push({ body, sprite });
+      }
+    }
+    for (const p of this.props) p.sprite.setPosition(p.body.position.x, p.body.position.y).setRotation(p.body.angle);
+    // seagulls swoop at head height
+    for (const z of this.gullZones) {
+      if (rx > z.x && rx < z.x + z.len && now > z.next && !r.crashed) {
+        z.next = now + Phaser.Math.Between(1800, 2800);
+        const x = rx + 900, y0 = gy(x) - 100;
+        this.gulls.push({ sprite: this.add.image(x, y0, 'gull').setScale(1 / RES).setDepth(20), y0, done: false });
+        this.time.delayedCall(200, () => { if (Math.random() < 0.5) this.say('Seagull! Mind the yoghurt!', 1400); });
+      }
+    }
+    this.gulls = this.gulls.filter((g) => {
+      const s = g.sprite;
+      if (!g.done) {
+        s.y = this.groundY(s.x) - 100 + Math.sin(s.x * 0.02) * 14;
+        const h = r.head.position;
+        if (!r.crashed && Math.hypot(h.x - s.x, h.y - s.y) < 34) {
+          g.done = true;
+          if (this.stats.yoghurts > 0) { this.stats.yoghurts--; this.stats.stolen++; this.bigText(s.x, s.y - 30, 'SQUAWK! YOGHURT NICKED!', '#fff'); }
+          else this.bigText(s.x, s.y - 30, 'SQUAWK!', '#fff');
+          sfx.bad();
+          this.tweens.add({ targets: s, y: s.y - 400, x: s.x - 200, duration: 1200, onComplete: () => s.destroy() });
+        }
+      }
+      if (s.x < rx - 900) { s.destroy(); return false; }
+      return !g.done || s.active;
+    });
   }
 
   finish(lost = false) {

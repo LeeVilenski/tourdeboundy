@@ -36,7 +36,11 @@ export const LEVEL1: LevelDef = {
   skyBottom: 0xbfe0ff,
   checkpoints: [0, 2800, 4500, 6100, 7450],
   obstacles: [
+    { type: 'log', x: 420 },
     { type: 'cat', x: 1250 },
+    { type: 'dog', x: 5980 },
+    { type: 'log', x: 4470 },
+    { type: 'roller', x: 9228, kind: 'bale' },
     { type: 'horse', x: 3000, exitX: 3850 },
     { type: 'overtake', triggerX: 5000 },
     { type: 'kicker', x: 5470, h: 58, len: 120 },
@@ -46,6 +50,7 @@ export const LEVEL1: LevelDef = {
     { type: 'kicker', x: 9280, h: 30, len: 90 },
     { type: 'car', x: 5640 },
     { type: 'trailer', x: 6800 },
+    { type: 'kicker', x: 7330, h: 62, len: 150, big: true },
   ],
   pickups: [
     { type: 'gel', x: 600 },
@@ -67,6 +72,7 @@ export const LEVEL1: LevelDef = {
     { type: 'yoghurt', x: 9150, dy: -60 },
   ],
   decor: [
+    { type: 'board', x: 230, text: 'HOP! ⤒' },
     { type: 'sign', x: 1000, text: 'CATS', icon: 'cat' },
     { type: 'sign', x: 2650, text: 'HORSES', icon: 'horse' },
     { type: 'gate', x: 3850 },

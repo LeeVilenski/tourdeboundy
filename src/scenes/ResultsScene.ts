@@ -112,8 +112,9 @@ export class ResultsScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     const L = cx - 255, V = cx + 120, P = cx + 255;
+    const rowH = Math.min(34, 300 / sc.lines.length);
     sc.lines.forEach((line, i) => {
-      const y = 138 + i * 34;
+      const y = 138 + i * rowH;
       this.add.text(L, y, line.label, { fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '20px', color: '#cfe0ff' });
       this.add.text(V, y, line.value, { fontFamily: 'Arial Black, Arial', fontSize: '19px', color: '#fff' }).setOrigin(1, 0);
       const pts = this.add.text(P, y, `${line.points >= 0 ? '+' : ''}${line.points}`, {
@@ -123,7 +124,7 @@ export class ResultsScene extends Phaser.Scene {
     });
 
     // total ticks up, then the rank stamps down
-    const lineY = 138 + sc.lines.length * 34 + 6;
+    const lineY = 138 + sc.lines.length * rowH + 6;
     this.add.rectangle(cx, lineY, 510, 3, 0xffffff, 0.6);
     this.add.text(L, lineY + 12, 'SCORE', { fontFamily: 'Arial Black, Arial', fontSize: '30px', color: '#ffd400' });
     const totalText = this.add.text(P, lineY + 12, '0', { fontFamily: 'Arial Black, Arial', fontSize: '30px', color: '#ffd400' }).setOrigin(1, 0);
