@@ -1,0 +1,44 @@
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: #1d2b4f; overflow: hidden;
+  font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif; color: #fff;
+  user-select: none; -webkit-user-select: none; touch-action: none; }
+#game { position: fixed; inset: 0; }
+#game canvas { display: block; }
+.hidden { display: none !important; }
+
+#hud { position: fixed; inset: 0; pointer-events: none; }
+#hud-top { position: absolute; top: 10px; left: 12px; right: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pill { background: rgba(20,30,60,.75); border: 2px solid #fff; border-radius: 999px; padding: 4px 12px;
+  font-weight: 800; font-size: 16px; color: #fff; }
+#btn-pause { position: absolute; top: 10px; right: 12px; pointer-events: auto; cursor: pointer; }
+#stamina { position: relative; width: 160px; height: 22px; border: 2px solid #fff; border-radius: 999px;
+  background: rgba(20,30,60,.75); overflow: hidden; }
+#stamina-fill { position: absolute; inset: 0; width: 100%; background: linear-gradient(90deg,#ffd200,#ff8a00); transition: width .1s; }
+#stamina span { position: relative; font-size: 11px; font-weight: 900; letter-spacing: 1px; padding-left: 10px; line-height: 18px; color: #1d2b4f; }
+
+#garmin { position: absolute; top: 52px; right: 12px; pointer-events: auto; cursor: pointer;
+  animation: pop .35s cubic-bezier(.2,1.6,.4,1); text-align: center; }
+.garmin-face { width: 128px; height: 128px; border-radius: 50%; background: #111; border: 8px solid #444;
+  box-shadow: 0 0 0 3px #222, 0 6px 14px rgba(0,0,0,.5); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 10px; }
+.garmin-title { font-size: 11px; color: #ff5a5a; font-weight: 900; letter-spacing: 1px; }
+.garmin-msg { font-size: 15px; font-weight: 900; color: #fff; line-height: 1.1; margin-top: 4px; }
+.garmin-hint { font-size: 11px; margin-top: 4px; text-shadow: 0 1px 2px #000; }
+#garmin.shake .garmin-face { animation: shake .3s; }
+@keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes shake { 25% { transform: translateX(-6px) rotate(-6deg);} 75% { transform: translateX(6px) rotate(6deg);} }
+
+#touch { position: fixed; inset: auto 0 0 0; display: flex; justify-content: space-between; padding: 0 12px 12px; pointer-events: none; }
+#touch > div { display: flex; gap: 10px; align-items: flex-end; }
+#touch button { pointer-events: auto; width: 76px; height: 76px; border-radius: 50%; border: 3px solid #fff;
+  background: rgba(20,30,60,.55); color: #fff; font-size: 22px; font-weight: 900; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; touch-action: none; }
+#touch button small { font-size: 10px; letter-spacing: 1px; }
+#touch button.pedal { width: 96px; height: 96px; background: rgba(40,160,70,.7); }
+#touch button.sprint { background: rgba(230,150,0,.7); }
+#touch button.down { transform: scale(.92); filter: brightness(1.4); }
+
+#rotate { display: none; position: fixed; inset: 0; background: #1d2b4f; z-index: 50; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center; font-size: 22px; font-weight: 800; }
+#rotate div { font-size: 64px; }
+@media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
