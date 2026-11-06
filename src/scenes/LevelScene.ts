@@ -355,8 +355,9 @@ export class LevelScene extends Phaser.Scene {
 
   buildPickups() {
     for (const p of this.def.pickups) {
-      const y = this.groundY(p.x) - 40 + (p.dy ?? 0);
-      const body = this.matter.add.circle(p.x, y, 20, { isStatic: true, isSensor: true, label: 'pickup' }) as Body;
+      // cakes sit low on the road so you can jump over them
+      const y = this.groundY(p.x) + (p.type === 'cake' ? -17 : -40 + (p.dy ?? 0));
+      const body = this.matter.add.circle(p.x, y, p.type === 'cake' ? 14 : 20, { isStatic: true, isSensor: true, label: 'pickup' }) as Body;
       const sprite = this.add.image(p.x, y, p.type).setScale(1 / RES).setDepth(8);
       this.tweens.add({ targets: sprite, y: y - 6, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       this.pickups.push({ body, sprite, type: p.type, taken: false });
@@ -468,7 +469,7 @@ export class LevelScene extends Phaser.Scene {
 
   hitHorse() {
     if (this.rider.crashed) return;
-    if (Math.abs(this.rider.speed) > 2.2) {
+    if (Math.abs(this.rider.speed) > 5.5) {
       this.stats.kickedByHorse = true;
       sfx.neigh();
       const h = this.horses[0];
@@ -582,7 +583,7 @@ export class LevelScene extends Phaser.Scene {
       if (h.gone) continue;
       const gap = h.body.position.x - r.position.x;
       if (gap < 700 && gap > -50) h.label.setAlpha(1);
-      if (gap > 0 && gap < 330 && Math.abs(r.speed) < 3.2 && !r.crashed) h.wait += dt; else h.wait = Math.max(0, h.wait - dt * 0.5);
+      if (gap > 0 && gap < 450 && Math.abs(r.speed) < 5 && !r.crashed) h.wait += dt; else h.wait = Math.max(0, h.wait - dt * 0.3);
       if (gap < 900) {
         const nx = h.body.position.x + 0.9 * (dt / 16.67);
         const gy = this.groundY(nx);
@@ -590,9 +591,9 @@ export class LevelScene extends Phaser.Scene {
         h.sprite.setPosition(nx, gy - 60 + Math.sin(now * 0.012) * 1.5);
         h.label.setPosition(nx, gy - 140);
       }
-      if (h.wait > 1400 || h.body.position.x >= h.exitX) {
+      if (h.wait > 700 || h.body.position.x >= h.exitX) {
         h.gone = true;
-        const polite = h.wait > 1400;
+        const polite = h.wait > 700;
         if (polite) { this.stats.courteous = true; this.toast('COURTEOUS RIDER +1'); }
         this.matter.world.remove(h.body);
         h.label.setText(polite ? 'Thank you! 👋' : 'Hmph.');
