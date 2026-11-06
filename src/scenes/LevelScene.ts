@@ -478,7 +478,26 @@ export class LevelScene extends Phaser.Scene {
   }
 
   // ---------- rider lifecycle ----------
+  /** Never respawn on top of a ramp, car, trailer, log or pit: step back to clear road. */
+  safeSpawnX(x: number) {
+    const spans: [number, number][] = [];
+    for (const o of this.def.obstacles) {
+      if (o.type === 'kicker') spans.push([o.x - 70, o.x + o.len + 40]);
+      else if (o.type === 'car') spans.push([o.x - 70, o.x + 260]);
+      else if (o.type === 'trailer') spans.push([o.x - 70, o.x + 540]);
+      else if (o.type === 'log') spans.push([o.x - 100, o.x + 70]);
+      else if (o.type === 'hazard') spans.push([o.x - 90, o.x + o.len + 60]);
+    }
+    for (let guard = 0; guard < 10; guard++) {
+      const hit = spans.find(([a, b]) => x > a && x < b);
+      if (!hit) break;
+      x = hit[0] - 10;
+    }
+    return x;
+  }
+
   spawn(x: number) {
+    x = this.safeSpawnX(x);
     this.rider?.destroy();
     this.rider = new Rider(this, x, this.groundY(x) - 42);
     this.upsideDownSince = 0;
