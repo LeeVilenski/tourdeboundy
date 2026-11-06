@@ -42,7 +42,7 @@ export const LEVEL3: LevelDef = {
     { type: 'hazard', x: k1 + 200, len: 170, kind: 'mud' },
     { type: 'gravel', x: gravel1, len: 900 },
     { type: 'cat', x: cat + 160 },
-    { type: 'kicker', x: carpark + 1240, h: 62, len: 150, big: true },
+    { type: 'kicker', x: carpark + 1240, h: 82, len: 175, big: true },
     { type: 'kicker', x: k2 + 40, h: 46, len: 175 },
     { type: 'hazard', x: k2 + 220, len: 220, kind: 'mud' },
     { type: 'gravel', x: gravel2 + 300, len: 500 },

@@ -24,7 +24,7 @@ const obstacles: ObstacleDef[] = [
   { type: 'walker', x: sea + 900, exitX: sea + 1600, who: 'dogwalker' },
   { type: 'kicker', x: sea + 1750, h: 30, len: 90 },
   { type: 'cat', x: summit + 150 },
-  { type: 'kicker', x: summit + 330, h: 62, len: 150, big: true },
+  { type: 'kicker', x: summit + 330, h: 82, len: 175, big: true },
   { type: 'overtake', triggerX: summit + 900 },
   { type: 'kicker', x: kenn + 450, h: 30, len: 90 },
   { type: 'kicker', x: kenn + 1150, h: 58, len: 120 },

@@ -4,7 +4,7 @@ import { makeTextures } from './textures';
 import { MenuScene } from './scenes/MenuScene';
 import { LevelScene } from './scenes/LevelScene';
 import { ResultsScene } from './scenes/ResultsScene';
-import { wireInput } from './ui/input';
+import { wireInput, input } from './ui/input';
 
 class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
@@ -18,6 +18,7 @@ class BootScene extends Phaser.Scene {
 }
 
 wireInput();
+(window as any).tdbInput = input;
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,

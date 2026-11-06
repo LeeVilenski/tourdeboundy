@@ -10,7 +10,9 @@ export const hud = {
     $('touch').classList.add('hidden');
     $('garmin').classList.add('hidden');
   },
-  set(timeMs: number, dist: string, yog: number, stamina: number) {
+  set(timeMs: number, dist: string, yog: number, stamina: number, kmh = 0) {
+    $('hud-speed').textContent = `${Math.round(kmh)} km/h`;
+    $('hud-speed').classList.toggle('fast', kmh > 46);
     const s = timeMs / 1000;
     $('hud-time').textContent = `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
     $('hud-dist').textContent = dist;

@@ -28,7 +28,7 @@ for (let lap = 1; lap <= 3; lap++) {
     decor.push({ type: 'plaque', x: mid + 350, text: 'WILL CRASHED HERE' });
     obstacles.push({ type: 'gulls', x: L0 + 500, len: 1600 });
   }
-  if (lap >= 2) obstacles.push({ type: 'kicker', x: bank2 + 120, h: 55, len: 150, big: true });
+  if (lap >= 2) obstacles.push({ type: 'kicker', x: bank2 + 120, h: 78, len: 170, big: true });
   if (lap >= 2) obstacles.push({ type: 'gravel', x: back + 60, len: 320, oil: true });
   if (lap === 2) {
     // crash in the bunch: jump the wreckage

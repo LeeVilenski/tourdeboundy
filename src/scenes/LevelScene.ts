@@ -8,7 +8,7 @@ import { RES } from '../textures';
 import { WILL_LINES, CRASH_LINES, GARMIN_MSGS, GARMIN_REPLIES, CAKE_LINES, LEE_JOIN, LEE_CRASH, LEE_LEAVE, ANDY_TAUNTS } from '../lines';
 import { NpcRider, LEE_LOOK, ANDY_LOOK, RIVAL_LOOKS } from '../entities/NpcRider';
 import { WalkerKind } from '../levels/types';
-import { drawBackdrop, drawRoadside, drawDecor, groundColor } from './themes';
+import { drawBackdrop, drawRoadside, drawDecor, groundColor, Chunk, sliced } from './themes';
 import { sfx } from '../sfx';
 
 type Body = MatterJS.BodyType;
@@ -73,6 +73,9 @@ export class LevelScene extends Phaser.Scene {
   gusts: { x: number; len: number }[] = [];
   inGust = false;
   wind!: Phaser.GameObjects.Particles.ParticleEmitter;
+  speedLines!: Phaser.GameObjects.Particles.ParticleEmitter;
+  chunks: Chunk[] = [];
+  lowDetail = false;
   movers: { img: Phaser.GameObjects.Image; x0: number; x1: number; v: number }[] = [];
   lee?: { npc: NpcRider; state: 'off' | 'riding' | 'down' | 'gone'; x: number; hit: Set<number>; downUntil: number; bubble?: Phaser.GameObjects.Text; bubbleUntil: number };
   andy?: { npc: NpcRider; state: 'sitting' | 'sprint' | 'done'; x: number; v: number; nextTaunt: number; bubble?: Phaser.GameObjects.Text; bubbleUntil: number };
@@ -81,7 +84,7 @@ export class LevelScene extends Phaser.Scene {
   rivals: { npc: NpcRider; x: number; off: number; phase: number; state: 'riding' | 'down' }[] = [];
   lapShown = 1;
   // tricks
-  airborne = false; airStart = 0; airRot = 0; lastAngle = 0; wheelieSteps = 0;
+  airborne = false; airStart = 0; airRot = 0; lastAngle = 0; wheelieSteps = 0; groundSteps = 0;
   pendingTrick?: { at: number; pts: number; label: string };
   camOff = -220; camZoom = 1;
   // hazards
@@ -128,7 +131,7 @@ export class LevelScene extends Phaser.Scene {
     this.gusts = []; this.inGust = false; this.movers = []; this.lee = undefined; this.andy = undefined;
     this.garminShows = 0; this.garminDone = false; this.rivals = []; this.lapShown = 1;
     this.airborne = false; this.wheelieSteps = 0; this.pendingTrick = undefined; this.camOff = -220; this.camZoom = 1;
-    this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
+    this.lowDetail = false; this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
   }
 
   // ---------- terrain helpers ----------
@@ -149,7 +152,7 @@ export class LevelScene extends Phaser.Scene {
     drawBackdrop(this, this.def, W, H, L);
     drawDecor(this, this.def, (x) => this.groundY(x), this.movers);
     this.drawFinishArch();
-    drawRoadside(this, this.def, (x) => this.groundY(x));
+    this.chunks = drawRoadside(this, this.def, (x) => this.groundY(x));
     this.drawRoad();
 
     // ---------- physics ground ----------
@@ -171,6 +174,10 @@ export class LevelScene extends Phaser.Scene {
       x: { min: 0, max: W }, y: { min: 0, max: H * 0.8 }, speedX: { min: -1400, max: -900 }, lifespan: 900,
       alpha: { start: 0.8, end: 0 }, frequency: 40, emitting: false,
     }).setScrollFactor(0).setDepth(35);
+    this.speedLines = this.add.particles(0, 0, 'streak', {
+      x: { min: 0, max: W }, y: { min: H * 0.1, max: H * 0.9 }, speedX: { min: -2200, max: -1500 }, lifespan: 500,
+      scaleX: { min: 0.6, max: 1.6 }, alpha: { start: 0.5, end: 0 }, frequency: 30, emitting: false,
+    }).setScrollFactor(0).setDepth(34);
 
     // ---------- rider + camera ----------
     this.spawn(this.lastCp);
@@ -221,6 +228,7 @@ export class LevelScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-R', () => { if (!this.finished && !this.paused) this.crashOrRespawn(true); });
     this.events.once('shutdown', () => { hud.hide(); this.matter.world?.off('collisionstart'); this.matter.world?.off('collisionactive'); this.matter.world?.off('beforeupdate'); });
 
+    this.events.off('hop');
     this.events.on('hop', () => sfx.click());
     this.startTime = this.time.now;
     this.garminNext = this.time.now + 7000;
@@ -244,26 +252,21 @@ export class LevelScene extends Phaser.Scene {
 
   drawRoad() {
     const t = this.def.terrain;
-    const ground = this.add.graphics().setDepth(5);
-    ground.fillStyle(groundColor(this.def.theme), 1);
-    ground.beginPath();
-    ground.moveTo(t[0].x, 3000);
-    for (const p of t) ground.lineTo(p.x, p.y);
-    ground.lineTo(t[t.length - 1].x, 3000);
-    ground.closePath(); ground.fillPath();
-    ground.fillStyle(0x3a3a3f, 1);
-    ground.beginPath();
-    ground.moveTo(t[0].x, t[0].y);
-    for (const p of t) ground.lineTo(p.x, p.y);
-    for (let i = t.length - 1; i >= 0; i--) ground.lineTo(t[i].x, t[i].y + 22);
-    ground.closePath(); ground.fillPath();
-    ground.lineStyle(3, 0x1f1f22, 1);
-    ground.strokePoints(t as Phaser.Types.Math.Vector2Like[]);
-    ground.lineStyle(2, 0x58585e, 1);
-    ground.strokePoints(t.map((p) => ({ x: p.x, y: p.y + 22 })));
     const verge = this.def.theme === 'town' ? 0xbdbdbd : this.def.theme === 'moor' ? 0x7d7a3e : 0x4f9236;
-    ground.lineStyle(5, verge, 1);
-    ground.strokePoints(t.map((p) => ({ x: p.x, y: p.y + 25 })));
+    const earth = groundColor(this.def.theme);
+    this.chunks.push(...sliced(this, t, 5, (g, pts) => {
+      g.fillStyle(earth, 1).beginPath().moveTo(pts[0].x, 3000);
+      for (const p of pts) g.lineTo(p.x, p.y);
+      g.lineTo(pts[pts.length - 1].x, 3000).closePath().fillPath();
+      g.fillStyle(0x3a3a3f, 1).beginPath().moveTo(pts[0].x, pts[0].y);
+      for (const p of pts) g.lineTo(p.x, p.y);
+      for (let i = pts.length - 1; i >= 0; i--) g.lineTo(pts[i].x, pts[i].y + 22);
+      g.closePath().fillPath();
+      g.lineStyle(3, 0x1f1f22, 1).strokePoints(pts as Phaser.Types.Math.Vector2Like[]);
+      g.lineStyle(2, 0x58585e, 1).strokePoints(pts.map((p) => ({ x: p.x, y: p.y + 22 })));
+      g.lineStyle(5, verge, 1).strokePoints(pts.map((p) => ({ x: p.x, y: p.y + 25 })));
+    }));
+    const ground = this.add.graphics().setDepth(5.5);
     // gravel patches
     for (const o of this.def.obstacles) {
       if (o.type !== 'gravel') continue;
@@ -297,8 +300,16 @@ export class LevelScene extends Phaser.Scene {
   }
 
   // ---------- physics building ----------
-  buildGround(pts: Pt[], walls = true) {
+  buildGround(raw: Pt[], walls = true) {
     const T = 40;
+    // merge runs of nearly-straight segments: far fewer physics bodies, same shape
+    const pts: Pt[] = [raw[0]];
+    for (let i = 1; i < raw.length - 1; i++) {
+      const a = pts[pts.length - 1], b = raw[i], c = raw[i + 1];
+      const a1 = Math.atan2(b.y - a.y, b.x - a.x), a2 = Math.atan2(c.y - b.y, c.x - b.x);
+      if (Math.abs(a1 - a2) > 0.012 || c.x - a.x > 500) pts.push(b);
+    }
+    pts.push(raw[raw.length - 1]);
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i], b = pts[i + 1];
       const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy);
@@ -417,7 +428,7 @@ export class LevelScene extends Phaser.Scene {
         this.add.image(o.x - 60, gy - 2, 'van').setScale(0.5 / RES * 1.6).setOrigin(0.5, 1).setDepth(3);
         const door = this.add.rectangle(o.x, gy - 72, 10, 56, 0xf2f2f2).setStrokeStyle(3, 0x111111).setOrigin(0.5, 0).setDepth(8).setScale(0.15, 1);
         const lights = this.add.graphics().setDepth(4);
-        this.doors.push({ x: o.x, trigger: Phaser.Math.Between(260, 420), state: 'shut', door, lights });
+        this.doors.push({ x: o.x, trigger: Phaser.Math.Between(480, 620), state: 'shut', door, lights });
       } else if (o.type === 'roller') {
         this.rollers.push({ x: o.x, kind: o.kind, next: 0, live: [] });
       } else if (o.type === 'dog') {
@@ -425,7 +436,7 @@ export class LevelScene extends Phaser.Scene {
         const sprite = this.add.image(o.x + 40, gy - 50, 'collie').setScale(1 / RES).setDepth(3).setFlipX(true);
         this.dogs.push({ x: o.x, state: 'wait', dx: 0, until: 0, biteCool: 0, sprite });
       } else if (o.type === 'branch') {
-        this.branches.push({ x: o.x, trigger: Phaser.Math.Between(200, 320), dropped: false });
+        this.branches.push({ x: o.x, trigger: Phaser.Math.Between(560, 700), dropped: false });
       } else if (o.type === 'gulls') {
         this.gullZones.push({ x: o.x, len: o.len, next: 0 });
       } else if (o.type === 'gust') {
@@ -675,14 +686,26 @@ export class LevelScene extends Phaser.Scene {
     this.camTarget.setPosition(pos.x, pos.y);
     // camera looks further ahead and pulls back a touch as you speed up
     const spd = r.crashed ? 0 : Phaser.Math.Clamp(r.speed, 0, 13);
-    this.camOff += (-220 - spd * 16 - this.camOff) * 0.04;
-    this.camZoom += (1 - Math.max(0, spd - 6) * 0.013 - this.camZoom) * 0.03;
+    this.camOff += (-220 - spd * 20 - this.camOff) * 0.05;
+    this.camZoom += (1 - Math.max(0, spd - 6) * 0.018 - this.camZoom) * 0.04;
+    this.speedLines.emitting = spd > 10.5 && !this.inGust;
+    this.speedLines.setAlpha(Phaser.Math.Clamp((spd - 10.5) / 3, 0, 0.7));
     this.cameras.main.setFollowOffset(this.camOff, 70).setZoom(this.camZoom);
     this.updateHazards(now, dt);
+    // slow phone? drop the busiest scenery (crowds, hedge blobs, trees) and extra particles
+    if (!this.lowDetail && now - this.startTime > 4000 && this.game.loop.actualFps < 42) {
+      this.lowDetail = true;
+      this.chunks = this.chunks.filter((c) => { const d = c.g.depth; if (d === 2.1 || d === 1.9) { c.g.destroy(); return false; } return true; });
+      this.speedLines.setFrequency(90);
+      this.wind.setFrequency(120);
+    }
+    // only draw the scenery chunks near the screen
+    const view = this.cameras.main.worldView;
+    for (const c of this.chunks) c.g.setVisible(c.x1 > view.x - 200 && c.x0 < view.right + 200);
 
     if (!this.finished) {
       this.elapsed = now - this.startTime;
-      hud.set(this.elapsed, this.distText(r.position.x), this.stats.yoghurts, r.stamina);
+      hud.set(this.elapsed, this.distText(r.position.x), this.stats.yoghurts, r.stamina, r.crashed ? 0 : Math.max(0, r.speed * 4));
     }
 
     // bubble follows the head
@@ -927,7 +950,7 @@ export class LevelScene extends Phaser.Scene {
       }
     } else if (a.state === 'sprint') {
       // builds up to just under Will's full sprint speed
-      a.v = Math.min(11.2, a.v + 0.035 * f);
+      a.v = Math.min(12.9, a.v + 0.04 * f);
       a.x += a.v * f;
       if (a.x > this.def.finishX && !this.finished) {
         a.state = 'done';
@@ -948,7 +971,7 @@ export class LevelScene extends Phaser.Scene {
       if (q.state === 'down') continue;
       // ride around Will, drifting through the bunch; they fade in the final kilometre
       const target = r.position.x + q.off + 120 * Math.sin(now * 0.0004 + q.phase) - (finalKm ? 900 : 0);
-      const v = Phaser.Math.Clamp((target - q.x) * 0.04, 2.5, finalKm ? 8 : Math.max(9, r.speed + 3));
+      const v = Phaser.Math.Clamp((target - q.x) * 0.04, 2.5, finalKm ? 9.5 : Math.max(10.5, r.speed + 3));
       q.x += v;
       if (downCount < 2 && q.x > B.pileX - 60 && q.x < B.pileX + 40) {
         q.state = 'down'; downCount++;
@@ -989,13 +1012,17 @@ export class LevelScene extends Phaser.Scene {
       this.trickToast(`${t.label}  +${t.pts}`);
     }
     const air = !R.wheelsDown();
-    if (air) {
-      if (!this.airborne) { this.airborne = true; this.airStart = step; this.airRot = 0; this.lastAngle = R.frame.angle; }
+    if (this.airborne) {
+      // keep counting rotation through brief touches (e.g. clipping a ramp lip)
       this.airRot += Phaser.Math.Angle.Wrap(R.frame.angle - this.lastAngle);
       this.lastAngle = R.frame.angle;
-    } else if (this.airborne) {
+    }
+    if (air) {
+      this.groundSteps = 0;
+      if (!this.airborne) { this.airborne = true; this.airStart = step; this.airRot = 0; this.lastAngle = R.frame.angle; }
+    } else if (this.airborne && ++this.groundSteps >= 8) {
       this.airborne = false;
-      const airSteps = step - this.airStart;
+      const airSteps = step - this.airStart - 8;
       const flips = Math.floor((Math.abs(this.airRot) + 1.2) / (Math.PI * 2));
       const parts: string[] = []; let pts = 0;
       if (flips > 0) {
@@ -1039,7 +1066,7 @@ export class LevelScene extends Phaser.Scene {
   stepHazards() {
     const r = this.rider;
     if (!r) return;
-    for (const d of this.dogs) if (d.state === 'chase') d.dx += 9.2;
+    for (const d of this.dogs) if (d.state === 'chase') d.dx += 10.6;
     for (const g of this.gulls) if (!g.done && g.sprite.active) g.sprite.x -= 7;
   }
 
@@ -1049,7 +1076,7 @@ export class LevelScene extends Phaser.Scene {
     for (const d of this.doors) {
       const gap = d.x - rx;
       d.lights.clear();
-      if (d.state === 'shut' && gap < 800 && gap > 0 && Math.floor(now / 250) % 2) {
+      if (d.state === 'shut' && gap < 1300 && gap > 0 && Math.floor(now / 250) % 2) {
         d.lights.fillStyle(0xffa500, 1).fillCircle(d.x - 6, gy(d.x) - 30, 6).fillCircle(d.x - 230, gy(d.x) - 30, 6);
       }
       if (d.state === 'open' && this.physSteps > d.shutAt!) {
@@ -1062,7 +1089,7 @@ export class LevelScene extends Phaser.Scene {
         sfx.bad();
         this.tweens.add({ targets: d.door, scaleX: 3.5, x: d.x + 14, duration: 180 });
         d.body = this.matter.add.rectangle(d.x + 18, gy(d.x) - 44, 30, 56, { isStatic: true, label: 'door' }) as Body;
-        d.shutAt = this.physSteps + 100;
+        d.shutAt = this.physSteps + 80;
         this.time.delayedCall(300, () => this.say('WHOA, DOOR!'));
       }
     }
@@ -1122,7 +1149,7 @@ export class LevelScene extends Phaser.Scene {
     for (const b of this.branches) {
       if (!b.dropped && rx > b.x - b.trigger && !r.crashed) {
         b.dropped = true;
-        const top = gy(b.x) - 360;
+        const top = gy(b.x) - 250;
         this.bigText(b.x, top + 40, 'CREAK!', '#fff');
         const body = this.matter.add.rectangle(b.x, top, 108, 14, { label: 'hard', density: 0.002, friction: 0.8, angle: 0.2 }) as Body;
         const sprite = this.add.image(b.x, top, 'branch').setScale(1 / RES).setDepth(12);
@@ -1132,11 +1159,12 @@ export class LevelScene extends Phaser.Scene {
     for (const p of this.props) p.sprite.setPosition(p.body.position.x, p.body.position.y).setRotation(p.body.angle);
     // seagulls swoop at head height
     for (const z of this.gullZones) {
-      if (rx > z.x && rx < z.x + z.len && now > z.next && !r.crashed) {
-        z.next = now + Phaser.Math.Between(1800, 2800);
+      if (rx > z.x && rx < z.x + z.len && z.next === 0 && !r.crashed) {
+        z.next = 1; // one gull per zone
+        this.toast('SEAGULL INCOMING! 🐦');
         const x = rx + 900, y0 = gy(x) - 100;
         this.gulls.push({ sprite: this.add.image(x, y0, 'gull').setScale(1 / RES).setDepth(20), y0, done: false });
-        this.time.delayedCall(200, () => { if (Math.random() < 0.5) this.say('Seagull! Mind the yoghurt!', 1400); });
+        this.time.delayedCall(200, () => this.say('Seagull! Hop or duck!', 1400));
       }
     }
     this.gulls = this.gulls.filter((g) => {

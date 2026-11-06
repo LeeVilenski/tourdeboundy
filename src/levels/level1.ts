@@ -50,7 +50,7 @@ export const LEVEL1: LevelDef = {
     { type: 'kicker', x: 9280, h: 30, len: 90 },
     { type: 'car', x: 5640 },
     { type: 'trailer', x: 6800 },
-    { type: 'kicker', x: 7330, h: 62, len: 150, big: true },
+    { type: 'kicker', x: 7330, h: 82, len: 175, big: true },
   ],
   pickups: [
     { type: 'gel', x: 600 },

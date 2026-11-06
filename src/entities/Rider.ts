@@ -192,7 +192,7 @@ export class Rider {
       const sprinting = input.sprint && this.stamina > 0.02;
       if (sprinting) this.stamina = Math.max(0, this.stamina - 0.006);
       else this.stamina = Math.min(1, this.stamina + 0.0015);
-      const maxAV = sprinting ? 0.58 : boosted ? 0.52 : 0.44;
+      const maxAV = sprinting ? 0.66 : boosted ? 0.6 : 0.52;
       const grounded = this.wheelsDown();
       if (input.pedal || sprinting) {
         // ease up to speed: strong push from slow, tapering near the top
@@ -229,8 +229,11 @@ export class Rider {
       const L = this.leanAmt;
       if (!grounded) {
         // in the air: spin bike + rider together like one body (flips!)
-        const target = Math.abs(L) > 0.05 ? L * 0.21 : cur * 0.95;
-        this.spin(Phaser.Math.Clamp(target - cur, -0.022, 0.022));
+        // steady, capped spin rate (about one flip a second); letting go stops it quickly
+        const target = Math.abs(L) > 0.05 ? L * 0.13 : cur * 0.8;
+        const speedingUp = Math.abs(target) > Math.abs(cur) && Math.sign(target) === Math.sign(cur || target);
+        const maxStep = speedingUp ? 0.009 : 0.02;
+        this.spin(Phaser.Math.Clamp(target - cur, -maxStep, maxStep));
       } else if (Math.abs(L) > 0.05) {
         const dir = Math.sign(L);
         const tooFar = dir * this.frame.angle > 0.9; // stop wheelies/stoppies at ~50 degrees

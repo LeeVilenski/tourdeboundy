@@ -10,6 +10,8 @@ html, body { margin: 0; height: 100%; background: #1d2b4f; overflow: hidden;
 #hud-top { position: absolute; top: 10px; left: 12px; right: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pill { background: rgba(20,30,60,.75); border: 2px solid #fff; border-radius: 999px; padding: 4px 12px;
   font-weight: 800; font-size: 16px; color: #fff; }
+#hud-speed { min-width: 92px; text-align: center; transition: background .2s; }
+#hud-speed.fast { background: rgba(214,40,40,.85); }
 #btn-pause { position: absolute; top: 10px; right: 12px; pointer-events: auto; cursor: pointer; }
 #stamina { position: relative; width: 160px; height: 22px; border: 2px solid #fff; border-radius: 999px;
   background: rgba(20,30,60,.75); overflow: hidden; }

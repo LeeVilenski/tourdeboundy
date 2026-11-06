@@ -45,7 +45,7 @@ export const LEVEL4: LevelDef = {
     { type: 'gust', x: gust2, len: 900 },
     { type: 'sheep', x: sheep2 + 120 }, { type: 'sheep', x: sheep2 + 210 }, { type: 'sheep', x: sheep2 + 270 },
     { type: 'kicker', x: end + 200, h: 30, len: 90 },
-    { type: 'kicker', x: sheep2 + 340, h: 62, len: 150, big: true },
+    { type: 'kicker', x: sheep2 + 340, h: 82, len: 175, big: true },
   ],
   decor: [
     { type: 'board', x: 150, text: 'DARTMOOR' },

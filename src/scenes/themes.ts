@@ -13,7 +13,7 @@ function hills(scene: Phaser.Scene, f: number, color: number, base: number, amp:
   g.fillStyle(color, 1).beginPath();
   const y0 = base + 120 * f;
   g.moveTo(-800, 2000);
-  for (let x = -800; x <= L * f + 2200; x += 40) g.lineTo(x, y0 - amp * (Math.sin(x * freq) * 0.6 + Math.sin(x * freq * 2.3 + 1) * 0.4));
+  for (let x = -800; x <= L * f + 2200; x += 80) g.lineTo(x, y0 - amp * (Math.sin(x * freq) * 0.6 + Math.sin(x * freq * 2.3 + 1) * 0.4));
   g.lineTo(L * f + 2200, 2000).closePath().fillPath();
   return g;
 }
@@ -86,61 +86,91 @@ export function drawBackdrop(scene: Phaser.Scene, def: LevelDef, W: number, H: n
 }
 
 /** The band right behind the road: hedges, trees, stone walls or race barriers. */
-export function drawRoadside(scene: Phaser.Scene, def: LevelDef, gy: GY) {
+export type Chunk = { x0: number; x1: number; g: Phaser.GameObjects.Graphics };
+const CHUNK = 900;
+
+/** Draw something that follows the terrain, split into chunk-sized slices for culling. */
+export function sliced(scene: Phaser.Scene, t: { x: number; y: number }[], depth: number, draw: (g: Phaser.GameObjects.Graphics, pts: { x: number; y: number }[]) => void): Chunk[] {
+  const out: Chunk[] = [];
+  const x0 = t[0].x, x1 = t[t.length - 1].x;
+  for (let cx = x0; cx < x1; cx += CHUNK) {
+    const pts = t.filter((p, i) => (p.x >= cx && p.x <= cx + CHUNK) || (t[i + 1] && t[i + 1].x > cx && p.x < cx) || (t[i - 1] && t[i - 1].x < cx + CHUNK && p.x > cx + CHUNK));
+    if (pts.length < 2) continue;
+    const g = scene.add.graphics().setDepth(depth);
+    draw(g, pts);
+    out.push({ x0: cx - 150, x1: cx + CHUNK + 150, g });
+  }
+  return out;
+}
+
+/** Returns the scenery split into chunks so only the on-screen ones get drawn each frame. */
+export function drawRoadside(scene: Phaser.Scene, def: LevelDef, gy: GY): Chunk[] {
   const t = def.terrain;
   const x0 = t[0].x, x1 = t[t.length - 1].x;
   const rnd = new Phaser.Math.RandomDataGenerator(['roadside' + def.id]);
   const g = scene.add.graphics().setDepth(2);
+  const chunks = new Map<string, Chunk>();
+  const at = (x: number, depth = 2.1) => {
+    const i = Math.floor((x - x0) / CHUNK), key = i + ':' + depth;
+    let c = chunks.get(key);
+    if (!c) { c = { x0: x0 + i * CHUNK - 150, x1: x0 + (i + 1) * CHUNK + 150, g: scene.add.graphics().setDepth(depth) }; chunks.set(key, c); }
+    return c.g;
+  };
+  const extra: Chunk[] = [];
   const band = (top: (x: number) => number, color: number) => {
-    g.fillStyle(color, 1).beginPath().moveTo(x0, t[0].y + 4);
-    for (const p of t) g.lineTo(p.x, p.y - top(p.x));
-    for (let i = t.length - 1; i >= 0; i--) g.lineTo(t[i].x, t[i].y + 4);
-    g.closePath().fillPath();
+    extra.push(...sliced(scene, t, 2, (bg, pts) => {
+      bg.fillStyle(color, 1).beginPath().moveTo(pts[0].x, pts[0].y + 4);
+      for (const p of pts) bg.lineTo(p.x, p.y - top(p.x));
+      for (let i = pts.length - 1; i >= 0; i--) bg.lineTo(pts[i].x, pts[i].y + 4);
+      bg.closePath().fillPath();
+    }));
   };
   if (def.theme === 'lanes' || def.theme === 'estuary') {
     const top = (x: number) => 82 + 14 * Math.sin(x * 0.045) + 9 * Math.sin(x * 0.13 + 2);
     band(top, 0x3d7a2c);
     for (let x = x0; x < x1; x += 26) {
       const y = gy(x) - top(x) + 12;
-      g.fillStyle(rnd.pick([0x4f9236, 0x5ea43f, 0x427f2f]), 1).fillCircle(x + rnd.between(-6, 6), y + rnd.between(-4, 8), rnd.between(12, 20));
-      if (rnd.frac() < 0.25) g.fillStyle(rnd.pick([0xffffff, 0xffe066, 0xff8fb3]), 1).fillCircle(x, y + rnd.between(10, 40), 2.5);
+      at(x).fillStyle(rnd.pick([0x4f9236, 0x5ea43f, 0x427f2f]), 1).fillCircle(x + rnd.between(-6, 6), y + rnd.between(-4, 8), rnd.between(12, 20));
+      if (rnd.frac() < 0.25) at(x).fillStyle(rnd.pick([0xffffff, 0xffe066, 0xff8fb3]), 1).fillCircle(x, y + rnd.between(10, 40), 2.5);
     }
   } else if (def.theme === 'forest') {
     for (let x = x0; x < x1; x += rnd.between(55, 85)) {
-      const y = gy(x), h = rnd.between(230, 330);
-      g.fillStyle(0x5b3a1e, 1).fillRect(x - 7, y - h + 40, 14, h);
-      g.fillStyle(rnd.pick([0x1f4d27, 0x285e30, 0x1a4222]), 1).fillTriangle(x, y - h - 30, x - 46, y - h + 120, x + 46, y - h + 120);
-      g.fillTriangle(x, y - h + 30, x - 56, y - h + 190, x + 56, y - h + 190);
+      const y = gy(x), h = rnd.between(230, 330), tg = at(x, 1.9);
+      tg.fillStyle(0x5b3a1e, 1).fillRect(x - 7, y - h + 40, 14, h);
+      tg.fillStyle(rnd.pick([0x1f4d27, 0x285e30, 0x1a4222]), 1).fillTriangle(x, y - h - 30, x - 46, y - h + 120, x + 46, y - h + 120);
+      tg.fillTriangle(x, y - h + 30, x - 56, y - h + 190, x + 56, y - h + 190);
     }
     band(() => 26, 0x2f6b35);
-    for (let x = x0; x < x1; x += 22) g.fillStyle(rnd.pick([0x3f8a3f, 0x4fa34a]), 1).fillTriangle(x, gy(x) - 34, x - 10, gy(x), x + 10, gy(x));
+    for (let x = x0; x < x1; x += 22) at(x).fillStyle(rnd.pick([0x3f8a3f, 0x4fa34a]), 1).fillTriangle(x, gy(x) - 34, x - 10, gy(x), x + 10, gy(x));
   } else if (def.theme === 'moor') {
     band((x) => 26 + 3 * Math.sin(x * 0.2), 0x8f8f88);
     for (let x = x0; x < x1; x += 18) {
-      g.fillStyle(rnd.pick([0x7d7d77, 0xa3a39b, 0x6e6e68]), 1).fillRoundedRect(x, gy(x) - rnd.between(18, 28), rnd.between(14, 20), 12, 4);
+      const cg = at(x);
+      cg.fillStyle(rnd.pick([0x7d7d77, 0xa3a39b, 0x6e6e68]), 1).fillRoundedRect(x, gy(x) - rnd.between(18, 28), rnd.between(14, 20), 12, 4);
       if (rnd.frac() < 0.05) {
-        g.fillStyle(0x3f6b2a, 1).fillCircle(x, gy(x) - 34, 18);
-        g.fillStyle(0xffd400, 1);
-        for (let k = 0; k < 6; k++) g.fillCircle(x + rnd.between(-14, 14), gy(x) - 34 + rnd.between(-12, 12), 2.5);
+        cg.fillStyle(0x3f6b2a, 1).fillCircle(x, gy(x) - 34, 18);
+        cg.fillStyle(0xffd400, 1);
+        for (let k = 0; k < 6; k++) cg.fillCircle(x + rnd.between(-14, 14), gy(x) - 34 + rnd.between(-12, 12), 2.5);
       }
     }
   } else if (def.theme === 'town') {
     // crowd behind the barriers
     for (let x = x0 + 20; x < x1; x += rnd.between(16, 26)) {
       if (rnd.frac() < 0.15) continue;
-      const y = gy(x) - 40, c = rnd.pick([0xd62828, 0x2c7be5, 0xffd400, 0x2a9d8f, 0xffffff, 0xf4a261, 0x6a4c93]);
-      g.fillStyle(c, 1).fillRoundedRect(x - 9, y - 40, 18, 44, 6);
-      g.fillStyle(rnd.pick([0xf6c9a8, 0xd9a07a, 0x8d5524]), 1).fillCircle(x, y - 50, 8);
-      if (rnd.frac() < 0.2) g.fillStyle(0x111111, 1).fillRect(x + 6, y - 72, 3, 22).fillStyle(0xffffff, 1).fillRect(x + 9, y - 72, 18, 12);
+      const y = gy(x) - 40, c = rnd.pick([0xd62828, 0x2c7be5, 0xffd400, 0x2a9d8f, 0xffffff, 0xf4a261, 0x6a4c93]), cg = at(x);
+      cg.fillStyle(c, 1).fillRoundedRect(x - 9, y - 40, 18, 44, 6);
+      cg.fillStyle(rnd.pick([0xf6c9a8, 0xd9a07a, 0x8d5524]), 1).fillCircle(x, y - 50, 8);
+      if (rnd.frac() < 0.2) cg.fillStyle(0x111111, 1).fillRect(x + 6, y - 72, 3, 22).fillStyle(0xffffff, 1).fillRect(x + 9, y - 72, 18, 12);
     }
-    const b = scene.add.graphics().setDepth(2.5);
     for (let x = x0; x < x1; x += 70) {
-      const y = gy(x);
+      const y = gy(x), b = at(x, 2.5);
       b.lineStyle(3, 0xd0d4da, 1).strokeRect(x, y - 46, 66, 40);
       for (let k = 1; k < 8; k++) b.lineBetween(x + k * 8.2, y - 46, x + k * 8.2, y - 6);
       b.fillStyle(0x2c7be5, 1).fillRect(x + 4, y - 38, 58, 14);
     }
   }
+  g.destroy();
+  return [...chunks.values(), ...extra];
 }
 
 /** Scenery pieces placed along the level. Trains go into `movers` to be animated. */
