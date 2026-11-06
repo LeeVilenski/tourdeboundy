@@ -17,6 +17,7 @@ export interface RunStats {
   garminIgnored: number;
   yoghurts: number;
   yoghurtsTotal: number;
+  cakesTotal: number;
   cakesRefused: number;
   catsLaunched: number;
   courteous: boolean;
@@ -57,6 +58,7 @@ export class LevelScene extends Phaser.Scene {
     this.stats = {
       level: this.def.id, timeMs: 0, crashes: 0, garminIgnored: 0, yoghurts: 0,
       yoghurtsTotal: this.def.pickups.filter((p) => p.type === 'yoghurt').length,
+      cakesTotal: this.def.pickups.filter((p) => p.type === 'cake').length,
       cakesRefused: 0, catsLaunched: 0, courteous: false, kickedByHorse: false,
     };
     this.lastCp = this.def.checkpoints[0];
