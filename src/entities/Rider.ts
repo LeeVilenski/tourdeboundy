@@ -38,6 +38,10 @@ export class Rider {
   bikeLinks: Constraint[] = [];
   joints: Constraint[] = [];
   footLink!: Constraint;
+  thighPart!: Part;
+  shinPart!: Part;
+  ikLegs: Phaser.GameObjects.Image[] = [];
+  cranks!: Phaser.GameObjects.Graphics;
   crashed = false;
   crankAngle = 0;
   boostUntil = 0;
@@ -107,7 +111,7 @@ export class Rider {
     this.addPart(this.frame, 'frame', 11);
     // axles: a pin plus a little suspension spring each
     for (const wh of [this.rear, this.front]) {
-      this.scene.matter.add.constraint(this.frame, wh, 0, 0.9, {
+      this.scene.matter.add.constraint(this.frame, wh, 0, 1, {
         pointA: { x: wh.position.x - this.frame.position.x, y: wh.position.y - this.frame.position.y },
       });
     }
@@ -119,6 +123,16 @@ export class Rider {
     const thigh = this.limb(HIP, knee, 10, 'thigh', 'limb', 14);
     const shin = this.limb(knee, foot, 8, 'shin', 'limb', 14);
     const arm = this.limb(SHOULDER, HANDS, 7, 'arm', 'limb', 15);
+    this.thighPart = this.parts.find((q) => q.body === thigh)!;
+    this.shinPart = this.parts.find((q) => q.body === shin)!;
+    const sc = this.scene;
+    this.ikLegs = [
+      sc.add.image(0, 0, 'thigh').setScale(1 / RES).setDepth(9).setTint(0x9aa0b5),
+      sc.add.image(0, 0, 'shin').setScale(1 / RES).setDepth(9).setTint(0x9aa0b5),
+      sc.add.image(0, 0, 'thigh').setScale(1 / RES).setDepth(14),
+      sc.add.image(0, 0, 'shin').setScale(1 / RES).setDepth(14),
+    ];
+    this.cranks = sc.add.graphics().setDepth(12);
     const hp = this.w(HEAD);
     this.head = M.add.circle(hp.x, hp.y, 12, {
       label: 'head', density: 0.0008, friction: 0.5, collisionFilter: filter,
@@ -158,7 +172,8 @@ export class Rider {
   get position(): Vec { return this.frame.position; }
   get speed(): number { return this.frame.velocity.x; }
 
-  update(input: Controls, now: number) {
+  /** Controls — called once per physics step. */
+  step(input: Controls, now: number) {
     const B = this.scene.matter.body;
     if (!this.crashed) {
       const boosted = now < this.boostUntil;
@@ -170,7 +185,6 @@ export class Rider {
       if (input.pedal || sprinting) {
         const av = this.rear.angularVelocity;
         if (av < maxAV) B.setAngularVelocity(this.rear, Math.min(maxAV, av + accel));
-        this.crankAngle += 0.12 + Math.min(0.25, Math.abs(this.speed) * 0.02);
         // leg power: a push along the frame so climbs are rideable
         const fwd = { x: Math.cos(this.frame.angle), y: Math.sin(this.frame.angle) };
         const v = this.frame.velocity.x * fwd.x + this.frame.velocity.y * fwd.y;
@@ -184,27 +198,66 @@ export class Rider {
         if (Math.abs(this.speed) < 0.6) B.setAngularVelocity(this.rear, -0.08);
       }
       const lean = (input.leanBack ? -1 : 0) + (input.leanFwd ? 1 : 0);
-      // stability: settle the bike when on the ground and the player isn't leaning
-      if (!lean && this.wheelsDown()) B.setAngularVelocity(this.frame, this.frame.angularVelocity * 0.8);
+      const cur = this.frame.angularVelocity;
+      const grounded = this.wheelsDown();
       if (lean) {
-        const cur = this.frame.angularVelocity;
-        const counter = Math.sign(cur) !== lean ? 2 : 1; // react faster when reversing a lean
-        const av = cur + lean * counter * (this.wheelsDown() ? 0.02 : 0.014);
-        B.setAngularVelocity(this.frame, Phaser.Math.Clamp(av, -0.16, 0.16));
-        // on the ground, leaning shifts weight: lean back lifts the front wheel, lean forward lifts the back
-        if (this.wheelsDown()) {
-          const wheel = lean < 0 ? this.front : this.rear;
-          const f = this.totalMass() * 1.5e-3;
-          B.applyForce(wheel, wheel.position, { x: 0, y: -f });
+        // weight shift: one wheel up, the other down (a turning push with no net lift)
+        const tooFar = grounded && lean * this.frame.angle > 0.9; // stop wheelies/stoppies at ~50 degrees
+        const reversing = Math.sign(cur) !== lean;
+        if (!tooFar && Math.abs(cur) < (grounded ? 0.09 : 0.05) || reversing) {
+          const f = this.totalMass() * (reversing ? 1.3e-3 : 9e-4) * (grounded ? 1 : 0.45);
+          const up = lean < 0 ? this.front : this.rear, down = lean < 0 ? this.rear : this.front;
+          B.applyForce(up, up.position, { x: 0, y: -f });
+          B.applyForce(down, down.position, { x: 0, y: f });
+        }
+      } else {
+        // let go: settle on the ground, keep a gentle spin in the air
+        if (grounded) B.setAngularVelocity(this.frame, cur * 0.8);
+        else if (Math.abs(cur) > 0.004) {
+          // in the air, gently stop the spin (the rider's weight keeps it going otherwise)
+          const f = this.totalMass() * 2.2e-3 * Math.min(1, Math.abs(cur) / 0.02);
+          const up = cur < 0 ? this.rear : this.front, down = cur < 0 ? this.front : this.rear;
+          B.applyForce(up, up.position, { x: 0, y: -f });
+          B.applyForce(down, down.position, { x: 0, y: f });
         }
       }
-      // animate pedalling by moving the foot anchor round the crank
-      const p = this.crankPoint(this.crankAngle);
-      const c = Math.cos(this.frame.angle), s = Math.sin(this.frame.angle);
-      (this.footLink as any).pointA = { x: p.x * c - p.y * s, y: p.x * s + p.y * c };
     }
+  }
+
+  /** Visuals — called once per rendered frame. */
+  sync() {
     for (const { body, sprite } of this.parts) {
       sprite.setPosition(body.position.x, body.position.y).setRotation(body.angle);
+    }
+    const riding = !this.crashed;
+    this.thighPart.sprite.setVisible(!riding);
+    this.shinPart.sprite.setVisible(!riding);
+    for (const im of this.ikLegs) im.setVisible(riding);
+    this.cranks.clear();
+    if (!riding) return;
+    // cranks turn with the back wheel (clockwise when riding forwards)
+    this.crankAngle = this.rear.angle * 0.5;
+    const fa = this.frame.angle, c = Math.cos(fa), sn = Math.sin(fa), fp = this.frame.position;
+    const toWorld = (p: Vec) => ({ x: fp.x + p.x * c - p.y * sn, y: fp.y + p.x * sn + p.y * c });
+    const hip = toWorld(HIP), bb = toWorld(BB), fwd = { x: c, y: sn };
+    const legs: [number, number][] = [[this.crankAngle + Math.PI, 0], [this.crankAngle, 2]]; // far leg first
+    for (const [a, i] of legs) {
+      const foot = { x: bb.x + Math.cos(a + fa) * CRANK, y: bb.y + Math.sin(a + fa) * CRANK };
+      // two-bone IK, knee always bends forward
+      const L = 32;
+      let dx = foot.x - hip.x, dy = foot.y - hip.y;
+      const d = Math.min(Math.hypot(dx, dy), 2 * L - 0.5);
+      const ux = dx / Math.hypot(dx, dy), uy = dy / Math.hypot(dx, dy);
+      const h = Math.sqrt(L * L - (d / 2) ** 2);
+      let nx = -uy, ny = ux;
+      if (nx * fwd.x + ny * fwd.y < 0) { nx = -nx; ny = -ny; }
+      const knee = { x: hip.x + ux * d / 2 + nx * h, y: hip.y + uy * d / 2 + ny * h };
+      const f2 = { x: hip.x + ux * d, y: hip.y + uy * d };
+      dx = knee.x - hip.x; dy = knee.y - hip.y;
+      this.ikLegs[i].setPosition((hip.x + knee.x) / 2, (hip.y + knee.y) / 2).setRotation(Math.atan2(dy, dx));
+      this.ikLegs[i + 1].setPosition((knee.x + f2.x) / 2, (knee.y + f2.y) / 2).setRotation(Math.atan2(f2.y - knee.y, f2.x - knee.x));
+      // crank arm
+      this.cranks.lineStyle(3, i === 0 ? 0x555555 : 0x222222, 1).lineBetween(bb.x, bb.y, foot.x, foot.y);
     }
   }
 
@@ -237,5 +290,7 @@ export class Rider {
     const all = (world.localWorld as any).constraints as Constraint[];
     for (const c of [...all]) if (c.bodyA === this.frame || c.bodyB === this.frame) world.removeConstraint(c);
     this.parts = [];
+    for (const im of this.ikLegs) im.destroy();
+    this.cranks.destroy();
   }
 }

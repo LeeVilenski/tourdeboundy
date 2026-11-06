@@ -115,6 +115,11 @@ export class LevelScene extends Phaser.Scene {
     this.cameras.main.fadeIn(400);
 
     this.matter.world.on('collisionstart', (e: Phaser.Physics.Matter.Events.CollisionStartEvent) => this.onCollide(e));
+    // controls run once per physics step, so the feel is the same at any screen refresh rate
+    this.matter.world.on('beforeupdate', () => {
+      if (this.paused || !this.rider) return;
+      this.rider.step(this.finished ? { pedal: false, brake: true, leanBack: false, leanFwd: false, sprint: false } : input, this.time.now);
+    });
     this.matter.world.on('collisionactive', (e: Phaser.Physics.Matter.Events.CollisionActiveEvent) => {
       let n = 0;
       for (const pair of e.pairs) {
@@ -133,7 +138,7 @@ export class LevelScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-P', () => this.togglePause());
     this.input.keyboard?.on('keydown-ESC', () => this.togglePause());
     this.input.keyboard?.on('keydown-R', () => { if (!this.finished && !this.paused) this.crashOrRespawn(true); });
-    this.events.once('shutdown', () => { hud.hide(); this.matter.world?.off('collisionstart'); this.matter.world?.off('collisionactive'); });
+    this.events.once('shutdown', () => { hud.hide(); this.matter.world?.off('collisionstart'); this.matter.world?.off('collisionactive'); this.matter.world?.off('beforeupdate'); });
 
     this.startTime = this.time.now;
     this.garminNext = this.time.now + 7000;
@@ -552,7 +557,7 @@ export class LevelScene extends Phaser.Scene {
     if (this.paused) return;
     const now = this.time.now;
     const r = this.rider;
-    r.update(this.finished ? { pedal: false, brake: true, leanBack: false, leanFwd: false, sprint: false } : input, now);
+    r.sync();
 
     const pos = r.crashed ? r.head.position : r.position;
     this.camTarget.setPosition(pos.x, pos.y);

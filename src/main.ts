@@ -23,7 +23,6 @@ const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   backgroundColor: '#1d2b4f',
-  fps: { limit: 60 },
   scale: { mode: Phaser.Scale.EXPAND, autoCenter: Phaser.Scale.CENTER_BOTH, width: 1280, height: 720 },
   physics: {
     default: 'matter',
