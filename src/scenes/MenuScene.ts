@@ -72,7 +72,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     const help = isTouch()
-      ? 'Green = pedal · Left = brake · ↺ ↻ = lean · ⚡ = sprint · Tap the Garmin to ignore it'
+      ? 'Left thumb: ↺ ↻ lean · Right thumb: pedal, brake, ⚡ sprint · Tap the Garmin to ignore it'
       : '↑/W pedal · ↓/S brake · ←/→ lean · SHIFT sprint · G ignore Garmin · R restart · P pause';
     this.add.text(W / 2, 410, help, {
       fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '19px', color: '#fff', backgroundColor: '#1d2b4fcc', padding: { x: 14, y: 8 },

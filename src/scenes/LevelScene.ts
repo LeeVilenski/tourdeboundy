@@ -575,6 +575,8 @@ export class LevelScene extends Phaser.Scene {
       const resume = this.button(0, 30, 'RESUME', () => this.togglePause());
       const quit = this.button(0, 110, 'MENU', () => { this.paused = false; this.scene.start('Menu'); });
       c.add([bg, t, resume, quit]);
+      // children of a fixed container still need their own scroll factor for taps to land
+      for (const o of [bg, t, resume, quit]) o.setScrollFactor(0);
     } else {
       this.matter.world.resume();
       this.tweens.resumeAll();
