@@ -5,6 +5,7 @@ const t = new TerrainBuilder(-400, 500);
 t.flat(900);                                   // Exminster start
 const sea = t.x; t.flat(2200);                 // sea wall road (train alongside)
 t.pothole(); t.flat(160); t.pothole(40, 14); t.flat(300);
+const cock = t.x; t.flat(400); t.slope(300, -30); t.flat(900); t.slope(300, 30); t.flat(700); // Cockwood harbour
 const climb = t.x;
 t.slope(700, -120); t.flat(160); t.slope(600, -150); t.flat(140); t.slope(550, -140); // Mamhead
 const summit = t.x; t.flat(500);
@@ -12,7 +13,9 @@ t.slope(500, 150); t.flat(120); t.slope(600, 210); t.rollers(600, 40, 2); t.slop
 const kenn = t.x; t.flat(1900);                // Kenn village
 t.slope(300, -40);
 const ford = t.x; t.flat(1000);                // Kennford
-const finishX = ford + 650;
+const back = t.x; t.rollers(1200, 40, 3); t.flat(400); t.slope(600, -100); const hill = t.x; t.flat(300); t.slope(600, 100); t.flat(500); // lanes back to Exminster
+const home = t.x; t.flat(1100);
+const finishX = home + 650;
 
 const obstacles: ObstacleDef[] = [
   { type: 'trainrace', x: sea + 50, len: 2050 },
@@ -32,6 +35,14 @@ const obstacles: ObstacleDef[] = [
   { type: 'kicker', x: kenn + 450, h: 30, len: 90 },
   { type: 'kicker', x: kenn + 1150, h: 58, len: 120 },
   { type: 'car', x: kenn + 1320 },
+  // Cockwood
+  { type: 'cat', x: cock + 250 },
+  { type: 'overtake', triggerX: cock + 500 },
+  { type: 'kicker', x: cock + 1450, h: 30, len: 90 },
+  // back lanes
+  { type: 'log', x: back + 1450 },
+  { type: 'roller', x: hill + 40, kind: 'bale' },
+  { type: 'horse', x: home + 150, exitX: home + 700 },
 ];
 
 const decor: DecorDef[] = [
@@ -49,6 +60,14 @@ const decor: DecorDef[] = [
   { type: 'house', x: kenn + 1650, color: 0xd9e8f5 },
   { type: 'board', x: ford + 100, text: 'KENNFORD' },
   { type: 'cows', x: climb + 900 },
+  { type: 'board', x: cock + 120, text: 'COCKWOOD' },
+  { type: 'boat', x: cock + 700 },
+  { type: 'house', x: cock + 1000, color: 0xd9e8f5 }, { type: 'house', x: cock + 1250 },
+  { type: 'cafe', x: cock + 1900, name: 'HARBOUR CAFÉ' },
+  { type: 'sign', x: home - 100, text: 'HORSES', icon: 'horse' },
+  { type: 'gate', x: home + 700 },
+  { type: 'board', x: home + 950, text: 'EXMINSTER' },
+  { type: 'cows', x: back + 500 },
 ];
 
 export const LEVEL2: LevelDef = {
@@ -60,11 +79,11 @@ export const LEVEL2: LevelDef = {
   finishX,
   outro: 'Boxing session, then a swim.',
   skyTop: 0x4a7fe0, skyBottom: 0xcfe8ff,
-  par: 120, rankS: 9500,
-  checkpoints: [0, sea + 1300, climb - 100, summit + 100, kenn + 100, kenn + 1600],
+  par: Math.round(finishX / 120), rankS: Math.round(8000 + (finishX - 9550) * 0.5),
+  checkpoints: [0, sea + 1300, cock + 1000, climb - 100, summit + 100, kenn + 100, kenn + 1600, back + 100, hill + 400, home + 50],
   obstacles,
   decor,
-  lee: { joinX: kenn - 250, leaveX: finishX + 400, bollards: [kenn + 350, kenn + 900, kenn + 1500, ford + 300] },
+  lee: { joinX: kenn - 250, leaveX: back + 1300, bollards: [kenn + 350, kenn + 900, kenn + 1500, ford + 300] },
   pickups: [
     { type: 'gel', x: 600 },
     { type: 'yoghurt', x: sea + 300, dy: -60 },
@@ -81,5 +100,12 @@ export const LEVEL2: LevelDef = {
     { type: 'yoghurt', x: kenn + 1430, dy: -140 },
     { type: 'coffee', x: ford + 50 },
     { type: 'yoghurt', x: ford + 450, dy: -60 },
+    { type: 'yoghurt', x: cock + 600, dy: -60 },
+    { type: 'yoghurt', x: cock + 1530, dy: -100 },
+    { type: 'cake', x: cock + 1580 },
+    { type: 'yoghurt', x: back + 600, dy: -70 },
+    { type: 'gel', x: back + 1700 },
+    { type: 'yoghurt', x: hill + 150, dy: -60 },
+    { type: 'yoghurt', x: home + 900, dy: -60 },
   ],
 };

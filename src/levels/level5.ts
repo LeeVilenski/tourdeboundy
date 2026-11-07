@@ -10,9 +10,10 @@ const pickups: LevelDef['pickups'] = [{ type: 'gel', x: 400 }];
 const checkpoints: number[] = [0];
 let pileX = 0;
 
-for (let lap = 1; lap <= 3; lap++) {
+const LAPS = 4;
+for (let lap = 1; lap <= LAPS; lap++) {
   const L0 = t.x; laps.push(L0);
-  decor.push({ type: 'board', x: L0 + 60, text: lap === 3 ? 'BELL LAP' : `LAP ${lap} / 3` });
+  decor.push({ type: 'board', x: L0 + 60, text: lap === LAPS ? 'BELL LAP' : `LAP ${lap} / ${LAPS}` });
   t.flat(500);
   t.rollers(500, 25, 2);
   t.slope(400, -80); t.flat(220); t.slope(400, 80);   // banking 1
@@ -20,10 +21,12 @@ for (let lap = 1; lap <= 3; lap++) {
   const bank2 = t.x + 500; t.slope(500, -110); t.flat(300); t.slope(500, 110); // banking 2
   const back = t.x; t.flat(600);
   t.rollers(500, 30, 2);
+  const hill = t.x; t.flat(400); t.slope(450, -90); t.flat(250); t.slope(450, 90); t.flat(300); // up and over Babbacombe
 
   decor.push({ type: 'palm', x: L0 + 300 }, { type: 'palm', x: back + 300 });
   pickups.push({ type: 'yoghurt', x: L0 + 700, dy: -50 }, { type: 'coffee', x: back + 200 });
-  checkpoints.push(L0 + 100, mid + 100);
+  checkpoints.push(L0 + 100, mid + 100, hill + 100);
+  pickups.push({ type: 'yoghurt', x: hill + 1050, dy: -50 });
   if (lap === 1) {
     decor.push({ type: 'plaque', x: mid + 350, text: 'WILL CRASHED HERE' });
     obstacles.push({ type: 'gulls', x: L0 + 500, len: 1600 });
@@ -37,7 +40,7 @@ for (let lap = 1; lap <= 3; lap++) {
     obstacles.push({ type: 'kicker', x: mid + 120, h: 40, len: 110 }, { type: 'debris', x: pileX }, { type: 'debris', x: pileX + 80 });
     pickups.push({ type: 'yoghurt', x: pileX + 40, dy: -150 });
   }
-  if (lap === 3) {
+  if (lap === LAPS) {
     obstacles.push({ type: 'gulls', x: L0 + 300, len: 2200 });
     obstacles.push({ type: 'kicker', x: mid + 150, h: 30, len: 90 });
     pickups.push({ type: 'cake', x: mid + 320 }, { type: 'yoghurt', x: mid + 280, dy: -100 }, { type: 'gel', x: back + 450 });
@@ -52,13 +55,13 @@ checkpoints.push(straight - 300);
 export const LEVEL5: LevelDef = {
   id: 5,
   name: 'Torbay Velodrome',
-  subtitle: '3 laps. Beat Andy. He will sit on your wheel.',
+  subtitle: '4 laps. Beat Andy. He will sit on your wheel.',
   theme: 'town',
   terrain: t.pts,
   finishX,
   outro: 'Off for a run.',
   skyTop: 0x3f86e8, skyBottom: 0xc9e6ff,
-  par: 260, rankS: 18000,
+  par: Math.round(finishX / 120), rankS: Math.round(8000 + (finishX - 9550) * 0.5),
   boss: { sprintX: finishX - 750 },
   laps,
   bunch: { pileX },

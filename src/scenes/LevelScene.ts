@@ -494,7 +494,7 @@ export class LevelScene extends Phaser.Scene {
           }) as Body;
           this.planks.push({ body, x0, x1, top, on: false });
         }
-        this.add.text(o.x + o.planks[0][0] + 60, top - 40, 'HIGH ROUTE ⬆', { fontFamily: 'Arial Black, Arial', fontSize: '13px', color: '#111', backgroundColor: '#7CFC8A', padding: { x: 5, y: 2 } }).setOrigin(0.5).setDepth(7.5);
+
         for (const dx of o.yog ?? []) {
           const x = o.x + dx, y = top - 34;
           const body = this.matter.add.circle(x, y, 20, { isStatic: true, isSensor: true, label: 'pickup' }) as Body;
