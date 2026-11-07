@@ -295,7 +295,7 @@ export class LevelScene extends Phaser.Scene {
     this.startTime = this.time.now;
     this.garminNext = this.time.now + 7000;
     this.banner(`LEVEL ${this.def.id}: ${this.def.name.toUpperCase()}`, this.def.subtitle);
-    this.time.delayedCall(2600, () => this.say(pick(WILL_LINES)));
+    this.time.delayedCall(2600, () => this.say(this.rider.kit.perk === 'snacks' ? pick(['Yeehaw.', 'Saddle up, partner.', 'Giddy up, Dutchy.', 'This town ain\'t big enough for two Garmins.']) : pick(WILL_LINES)));
   }
 
   // ---------- drawing ----------
@@ -692,7 +692,7 @@ export class LevelScene extends Phaser.Scene {
       sfx.pickup();
       this.rider.boost(2500); this.rider.stamina = Math.min(1, this.rider.stamina + 0.3);
       this.toast('CAKE BOOST! 🍰');
-      this.say(pick(["Off duty. Cake's allowed.", 'Calories are just speed.', "Don't tell the Garmin."]));
+      this.say(pick(["Off duty. Cake's allowed.", 'Calories are just speed.', "Don't tell the Garmin.", 'Mighty fine cake, partner.']));
       return;
     }
     if (p.type === 'cake') {

@@ -410,11 +410,20 @@ export function makeTextures(scene: Phaser.Scene) {
     whiteShades(ctx, c);
   });
   // off duty: backwards blue cap + aviators
+  // cowboy: big ginger mullet, Stetson, aviators
   willHead('head_offduty', (ctx, c) => {
-    ctx.fillStyle = GINGER; ctx.beginPath(); ctx.arc(c - 2, c - 6, 9, Math.PI, 0); ctx.fill();
-    ctx.fillStyle = '#2156b5'; ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1.6;
-    ctx.beginPath(); ctx.arc(c, c - 4, 11.5, Math.PI * 1.05, Math.PI * 1.95); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(c - 13, c - 4, 6, 2, 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // the mullet: business at the front, party down the back
+    ctx.fillStyle = GINGER; ctx.strokeStyle = '#a8561c'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(c - 8, c - 6); ctx.quadraticCurveTo(c - 17, c + 4, c - 15, c + 17);
+    ctx.quadraticCurveTo(c - 10, c + 13, c - 8, c + 18); ctx.quadraticCurveTo(c - 5, c + 8, c - 3, c - 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(c - 13, c + 6); ctx.lineTo(c - 11, c + 14); ctx.moveTo(c - 9, c + 4); ctx.lineTo(c - 8, c + 13); ctx.stroke();
+    // Stetson
+    ctx.fillStyle = '#8b5a2b'; ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.ellipse(c, c - 8, 18, 3.5, -0.08, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(c - 9, c - 9); ctx.quadraticCurveTo(c - 10, c - 19, c - 3, c - 18); ctx.lineTo(c, c - 15);
+    ctx.lineTo(c + 3, c - 18); ctx.quadraticCurveTo(c + 10, c - 19, c + 9, c - 9); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#3b2414'; ctx.fillRect(c - 9, c - 12, 18, 3);
+    // aviators
     ctx.fillStyle = '#222'; ctx.beginPath(); ctx.ellipse(c + 7, c - 1, 4.5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#c9a227'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(c - 3, c - 2); ctx.lineTo(c + 3, c - 2); ctx.stroke();
   }, false);
@@ -437,11 +446,15 @@ export function makeTextures(scene: Phaser.Scene) {
     ctx.fillStyle = '#e8ff2a'; ctx.fillRect(x0 + 16, y0 + 2, 14, 14);
     ctx.fillStyle = '#111'; ctx.font = '900 9px Arial'; ctx.fillText('13', x0 + 17.5, y0 + 13);
   });
+  // red check cowboy shirt, bandana, denim + big belt buckle
   kitTorso('torso_offduty', (ctx, x0, y0, w, h) => {
-    ctx.fillStyle = '#9cc3e8'; ctx.fillRect(x0, y0, 12, h);
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1; for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(x0 + i * 2, y0); ctx.lineTo(x0 + i * 2, y0 + h); ctx.stroke(); }
-    ctx.fillStyle = '#6f8a55'; ctx.fillRect(x0 + 12, y0, w - 12, h);
-    ctx.fillStyle = '#4e6a3a'; for (let i = 0; i < 7; i++) { ctx.beginPath(); ctx.ellipse(x0 + 16 + (i % 4) * 7, y0 + 4 + Math.floor(i / 4) * 8, 2.5, 1.2, i, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = '#2f5d9e'; ctx.fillRect(x0, y0, 12, h);
+    ctx.fillStyle = '#d9a400'; ctx.fillRect(x0 + 9, y0 + h / 2 - 3, 4, 6);
+    ctx.fillStyle = '#c62828'; ctx.fillRect(x0 + 12, y0, w - 12, h);
+    ctx.fillStyle = 'rgba(255,255,255,.45)';
+    for (let i = 0; i < 6; i++) ctx.fillRect(x0 + 14 + i * 5, y0, 2, h);
+    for (let j = 0; j < 4; j++) ctx.fillRect(x0 + 12, y0 + 2 + j * 5, w - 12, 1.5);
+    ctx.fillStyle = '#1f4fa0'; ctx.beginPath(); ctx.moveTo(x0 + w - 6, y0 + 2); ctx.lineTo(x0 + w, y0 + h / 2); ctx.lineTo(x0 + w - 6, y0 + h - 2); ctx.closePath(); ctx.fill();
   });
 
   // retro Cannibal kit: orange wool jersey with black band, black shorts, white socks
@@ -462,9 +475,9 @@ export function makeTextures(scene: Phaser.Scene) {
   make(scene, 'arm_yellow', 50, 14, (ctx) => capsule(ctx, 38, 7, 50, 14, [{ to: 0.4, color: '#ffd400' }, { to: 1, color: SKIN }]));
   make(scene, 'arm_black', 50, 14, (ctx) => capsule(ctx, 38, 7, 50, 14, [{ to: 0.85, color: '#151515' }, { to: 1, color: SKIN }]));
   make(scene, 'arm_white', 50, 14, (ctx) => capsule(ctx, 38, 7, 50, 14, [{ to: 0.4, color: '#f4f4f4' }, { to: 1, color: SKIN }]));
-  make(scene, 'arm_shirt', 50, 14, (ctx) => capsule(ctx, 38, 7, 50, 14, [{ to: 0.35, color: '#6f8a55' }, { to: 1, color: SKIN }]));
-  make(scene, 'thigh_shorts', 42, 16, (ctx) => capsule(ctx, 31, 10, 42, 16, [{ to: 0.6, color: '#9cc3e8' }, { to: 1, color: SKIN }]));
-  make(scene, 'shin_bare', 40, 14, (ctx) => capsule(ctx, 28, 8, 40, 14, [{ to: 0.85, color: SKIN }, { to: 1, color: '#f2f2f2' }]));
+  make(scene, 'arm_shirt', 50, 14, (ctx) => capsule(ctx, 38, 7, 50, 14, [{ to: 0.8, color: '#c62828' }, { to: 1, color: SKIN }]));
+  make(scene, 'thigh_shorts', 42, 16, (ctx) => capsule(ctx, 31, 10, 42, 16, [{ to: 1, color: '#2f5d9e' }]));
+  make(scene, 'shin_bare', 40, 14, (ctx) => capsule(ctx, 28, 8, 40, 14, [{ to: 0.45, color: '#2f5d9e' }, { to: 1, color: '#7a4a24' }]));
 
   // ================= Critters + people =================
   make(scene, 'sheep', 52, 38, (ctx) => {

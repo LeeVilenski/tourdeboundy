@@ -64,7 +64,7 @@ export const KITS: Kit[] = [
   { id: 'gilet', name: 'Training gilet', need: 3, head: 'head', torso: 'torso_gilet', arm: 'arm_black', thigh: 'thigh', shin: 'shin', bike: 'frame', perk: 'windproof', perkText: 'Windproof: headwinds hit 60% softer, faster stamina recovery' },
   { id: 'wheelers', name: 'Wheelers #13', need: 6, head: 'head', torso: 'torso_wheelers', arm: 'arm_white', thigh: 'thigh_dark', shin: 'shin', bike: 'frame', perk: 'lucky13', perkText: 'Lucky 13: your first crash each level doesn\'t count' },
   { id: 'merckx', name: 'The Cannibal', need: 10, head: 'head_merckx', torso: 'torso_merckx', arm: 'arm_orange', thigh: 'thigh_dark', shin: 'shin_white', bike: 'frame_retro', perk: 'cannibal', perkText: 'Sprint king: bigger power hop, sprint lasts 30% longer' },
-  { id: 'offduty', name: 'Off duty', need: 15, head: 'head_offduty', torso: 'torso_offduty', arm: 'arm_shirt', thigh: 'thigh_shorts', shin: 'shin_bare', bike: 'frame_shopper', perk: 'snacks', perkText: 'Holiday mode: cake is a boost, yoghurts fly to you' },
+  { id: 'offduty', name: 'Off duty (Yeehaw)', need: 15, head: 'head_offduty', torso: 'torso_offduty', arm: 'arm_shirt', thigh: 'thigh_shorts', shin: 'shin_bare', bike: 'frame_shopper', perk: 'snacks', perkText: 'Holiday mode: cake is a boost, yoghurts fly to you' },
   { id: 'yellow', name: 'Yellow jersey', need: 22, head: 'head', torso: 'torso_yellow', arm: 'arm_yellow', thigh: 'thigh', shin: 'shin_white', bike: 'frame_gold', perk: 'champion', perkText: 'Champion: gold sparkle trail, the Garmin cheers you on' },
 ];
 export function currentKit(): Kit {
