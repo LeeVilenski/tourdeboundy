@@ -49,6 +49,7 @@ html, body { margin: 0; height: 100%; background: #1d2b4f; overflow: hidden;
   align-items: center; justify-content: center; text-align: center; font-size: 22px; font-weight: 800; }
 #rotate div { font-size: 64px; }
 @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
+body.touch-portrait #rotate { display: flex; }
 @media (max-height: 500px) {
   .garmin-face { width: 92px; height: 92px; border-width: 6px; }
   .garmin-msg { font-size: 12px; }
