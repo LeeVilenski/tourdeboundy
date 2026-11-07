@@ -11,7 +11,7 @@ import { RES } from '../textures';
 import { WILL_LINES, CRASH_LINES, GARMIN_MSGS, GARMIN_REPLIES, CAKE_LINES, LEE_JOIN, LEE_CRASH, LEE_LEAVE, ANDY_TAUNTS } from '../lines';
 import { NpcRider, LEE_LOOK, ANDY_LOOK, RIVAL_LOOKS } from '../entities/NpcRider';
 import { WalkerKind } from '../levels/types';
-import { drawBackdrop, drawRoadside, drawDecor, groundColor, Chunk, sliced } from './themes';
+import { drawBackdrop, drawRoadside, drawDecor, groundColor, Chunk, sliced, BackChunk } from './themes';
 import { sfx } from '../sfx';
 
 type Body = MatterJS.BodyType;
@@ -56,6 +56,7 @@ const WALKERS: Record<WalkerKind, { tex: string; w: number; h: number; texH: num
   pony: { tex: 'pony', w: 100, h: 102, texH: 96, speed: 0.6, ask: 'Dartmoor pony!', thanks: '(munches grass)', hit: 'NEIGH!' },
 };
 
+const NO_BAKE = new URLSearchParams(location.search).has('nobake');
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 
 export class LevelScene extends Phaser.Scene {
@@ -81,6 +82,14 @@ export class LevelScene extends Phaser.Scene {
   wind!: Phaser.GameObjects.Particles.ParticleEmitter;
   speedLines!: Phaser.GameObjects.Particles.ParticleEmitter;
   chunks: Chunk[] = [];
+  backChunks: BackChunk[] = [];
+  /** World x of whatever is being built right now; Graphics/Text made meanwhile get culled by it. */
+  cullX?: number;
+  culled: { o: Phaser.GameObjects.Graphics | Phaser.GameObjects.Text; x: number }[] = [];
+  rtPool: Phaser.GameObjects.RenderTexture[] = [];
+  earthPool: Phaser.GameObjects.Rectangle[] = [];
+  bakeH = { back: 600, front: 200 };
+  baked: { x0: number; x1: number; top: number; bot: number; depth: number; gs: Phaser.GameObjects.Graphics[]; rt?: Phaser.GameObjects.RenderTexture; earth?: Phaser.GameObjects.Rectangle }[] = [];
   lowDetail = false;
   combo = { count: 0, pts: 0, lastStep: 0, slow: 0 };
   ghostFrames: number[] = [];
@@ -149,7 +158,7 @@ export class LevelScene extends Phaser.Scene {
     this.gusts = []; this.inGust = false; this.movers = []; this.lee = undefined; this.andy = undefined;
     this.garminShows = 0; this.garminDone = false; this.rivals = []; this.lapShown = 1;
     this.airborne = false; this.wheelieSteps = 0; this.pendingTrick = undefined; this.camOff = -220; this.camZoom = 1;
-    this.lowDetail = false; this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 }; this.ghostFrames = []; this.ghostPlay = undefined; this.flung = false; this.trains = []; this.slowZones = []; this.slowOn = false; this.stampedes = []; this.confettiAt = []; this.planks = []; this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
+    this.baked = []; this.rtPool = []; this.earthPool = []; this.culled = []; this.cullX = undefined; this.lowDetail = false; this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 }; this.ghostFrames = []; this.ghostPlay = undefined; this.flung = false; this.trains = []; this.slowZones = []; this.slowOn = false; this.stampedes = []; this.confettiAt = []; this.planks = []; this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
   }
 
   // ---------- terrain helpers ----------
@@ -166,16 +175,27 @@ export class LevelScene extends Phaser.Scene {
     const W = this.scale.width, H = this.scale.height;
     const L = this.def.finishX + 1500;
 
+    // remember the level position of scenery as it's created, so off-screen pieces can be skipped
+    const fac = this.add as any;
+    if (!fac.__cullPatched) {
+      fac.__cullPatched = true;
+      for (const k of ['graphics', 'text']) {
+        const orig = fac[k].bind(fac);
+        fac[k] = (...a: unknown[]) => { const o = orig(...a); const sc = fac.scene as LevelScene; if (sc.cullX !== undefined) sc.culled.push({ o, x: sc.cullX }); return o; };
+      }
+    }
     // ---------- background ----------
-    drawBackdrop(this, this.def, W, H, L);
+    this.backChunks = drawBackdrop(this, this.def, W, H, L);
     drawDecor(this, this.def, (x) => this.groundY(x), this.movers);
-    this.drawFinishArch();
+    this.cullX = this.def.finishX; this.drawFinishArch(); this.endCull();
     this.chunks = drawRoadside(this, this.def, (x) => this.groundY(x));
     this.drawRoad();
+    this.groupChunks();
 
     // ---------- physics ground ----------
     this.buildGround(this.def.terrain);
     this.buildObstacles();
+    this.endCull();
     this.buildPickups();
     this.buildCheckpoints();
     this.buildCast();
@@ -296,10 +316,11 @@ export class LevelScene extends Phaser.Scene {
       g.lineStyle(2, 0x58585e, 1).strokePoints(pts.map((p) => ({ x: p.x, y: p.y + 22 })));
       g.lineStyle(5, verge, 1).strokePoints(pts.map((p) => ({ x: p.x, y: p.y + 25 })));
     }));
-    const ground = this.add.graphics().setDepth(5.5);
-    // gravel patches
+    // gravel patches (one Graphics each, so off-screen ones can be skipped)
     for (const o of this.def.obstacles) {
       if (o.type !== 'gravel') continue;
+      this.cullX = o.x;
+      const ground = this.add.graphics().setDepth(5.5);
       const seg = t.filter((p) => p.x >= o.x && p.x <= o.x + o.len);
       if (o.oil) {
         ground.lineStyle(9, 0x111118, 1).strokePoints(seg.map((p) => ({ x: p.x, y: p.y + 4 })));
@@ -372,6 +393,7 @@ export class LevelScene extends Phaser.Scene {
 
   buildObstacles() {
     for (const o of this.def.obstacles) {
+      this.cullX = 'x' in o ? (o as { x: number }).x : undefined;
       if (o.type === 'kicker') {
         const gy = this.groundY(o.x), gy2 = this.groundY(o.x + o.len);
         const pts: Pt[] = [];
@@ -522,6 +544,9 @@ export class LevelScene extends Phaser.Scene {
     }
   }
 
+  /** stop tagging new objects for culling */
+  endCull() { this.cullX = undefined; }
+
   buildPickups() {
     for (const p of this.def.pickups) {
       // cakes sit low on the road so you can jump over them
@@ -535,6 +560,7 @@ export class LevelScene extends Phaser.Scene {
 
   buildCheckpoints() {
     for (const x of this.def.checkpoints.slice(1)) {
+      this.cullX = x;
       const gy = this.groundY(x);
       const pole = this.add.graphics().setDepth(4);
       pole.fillStyle(0xeeeeee, 1).fillRect(x - 2, gy - 110, 4, 110);
@@ -542,6 +568,7 @@ export class LevelScene extends Phaser.Scene {
       flag.fillStyle(0xff8a00, 1).fillTriangle(x + 2, gy - 110, x + 2, gy - 80, x + 44, gy - 95);
       this.cpFlags.push({ x, flag, reached: false });
     }
+    this.endCull();
   }
 
   // ---------- rider lifecycle ----------
@@ -786,13 +813,21 @@ export class LevelScene extends Phaser.Scene {
     // slow phone? drop the busiest scenery (crowds, hedge blobs, trees) and extra particles
     if (!this.lowDetail && now - this.startTime > 4000 && this.game.loop.actualFps < 42) {
       this.lowDetail = true;
-      this.chunks = this.chunks.filter((c) => { const d = c.g.depth; if (d === 2.1 || d === 1.9) { c.g.destroy(); return false; } return true; });
       this.speedLines.setFrequency(90);
       this.wind.setFrequency(120);
     }
-    // only draw the scenery chunks near the screen
-    const view = this.cameras.main.worldView;
-    for (const c of this.chunks) c.g.setVisible(c.x1 > view.x - 200 && c.x0 < view.right + 200);
+    this.updateBaked();
+    // scenery pieces: only draw the ones near the screen
+    {
+      const v = this.cameras.main.worldView;
+      for (const c of this.culled) c.o.setVisible(c.x + 1300 > v.x && c.x - 900 < v.right);
+    }
+    // background layers: draw only the chunks in view (in each layer's own parallax coordinates)
+    const cam = this.cameras.main, vw = cam.width / cam.zoom;
+    for (const b of this.backChunks) {
+      const l = cam.scrollX * b.f - vw * 0.2;
+      b.g.setVisible(b.x1 > l && b.x0 < l + vw * 1.4);
+    }
 
     if (!this.finished) {
       this.elapsed = now - this.startTime;
@@ -946,11 +981,13 @@ export class LevelScene extends Phaser.Scene {
     const L = this.def.lee;
     if (L) {
       for (const bx of L.bollards) {
+        this.cullX = bx;
         const gy = this.groundY(bx) - 12;
         const g = this.add.graphics().setDepth(8.5);
         g.fillStyle(0x111111, 1).fillRoundedRect(bx - 8, gy - 48, 16, 50, 5);
         g.fillStyle(0xffffff, 1).fillRect(bx - 8, gy - 40, 16, 7).fillRect(bx - 8, gy - 26, 16, 7);
       }
+      this.endCull();
       const npc = new NpcRider(this, LEE_LOOK, 9, 0.92);
       npc.c.setVisible(false);
       this.lee = { npc, state: 'off', x: 0, hit: new Set(), downUntil: 0, bubbleUntil: 0 };
@@ -1318,6 +1355,74 @@ export class LevelScene extends Phaser.Scene {
       if (on !== p.on) { p.on = on; p.body.collisionFilter.mask = on ? 0xffffffff : 0; }
     }
   }
+
+  // ---------- scenery baking ----------
+  // Scenery is drawn with Graphics (lots of shapes). Rebuilding those every frame is slow on phones,
+  // so each stretch near the camera is drawn once into a texture and reused; far ones are released.
+  groupChunks() {
+    const t = this.def.terrain;
+    const groups = new Map<string, (typeof this.baked)[number]>();
+    for (const c of this.chunks) {
+      c.g.setVisible(false);
+      const front = c.g.depth >= 5;
+      const key = `${Math.round(c.x0)}:${front ? 'f' : 'b'}`;
+      let gr = groups.get(key);
+      if (!gr) {
+        const ys = t.filter((p) => p.x >= c.x0 - 40 && p.x <= c.x1 + 40).map((p) => p.y);
+        const minY = Math.min(...ys), maxY = Math.max(...ys);
+        gr = front
+          ? { x0: c.x0, x1: c.x1, top: Math.floor(minY - 8), bot: Math.ceil(maxY + 48), depth: 5, gs: [] }
+          : { x0: c.x0, x1: c.x1, top: Math.floor(minY - 400), bot: Math.ceil(maxY + 12), depth: 2, gs: [] };
+        groups.set(key, gr);
+      }
+      gr.gs.push(c.g);
+    }
+    this.baked = [...groups.values()];
+    for (const b of this.baked) b.gs.sort((a, c) => a.depth - c.depth);
+    const hOf = (d: number) => Math.min(1800, Math.max(...this.baked.filter((b) => b.depth === d).map((b) => b.bot - b.top), 50));
+    this.bakeH = { back: Math.ceil(hOf(2)), front: Math.ceil(hOf(5)) };
+  }
+
+  updateBaked() {
+    const view = this.cameras.main.worldView;
+    if (NO_BAKE) {
+      for (const b of this.baked) { const v = b.x1 > view.x - 200 && b.x0 < view.right + 200; for (const g of b.gs) g.setVisible(v); }
+      return;
+    }
+    let budget = 1; // bake at most one stretch ahead per frame (anything actually on screen is baked at once)
+    const todo = this.baked
+      .filter((b) => !b.rt && b.x1 > view.x - 300 && b.x0 < view.right + 1600)
+      .sort((a, c) => Math.abs(a.x0 - view.centerX) - Math.abs(c.x0 - view.centerX));
+    for (const b of todo) {
+      const onScreen = b.x1 > view.x - 100 && b.x0 < view.right + 100;
+      if (!onScreen && budget-- <= 0) continue;
+      this.bake(b);
+    }
+    for (const b of this.baked) {
+      if (b.rt && (b.x1 < view.x - 1800 || b.x0 > view.right + 2600)) {
+        b.rt.setVisible(false); this.rtPool.push(b.rt); b.rt = undefined;
+        b.earth?.setVisible(false); if (b.earth) this.earthPool.push(b.earth); b.earth = undefined;
+      }
+    }
+  }
+
+  /** Draw a stretch of scenery into a (pooled) texture. */
+  bake(b: (typeof this.baked)[number]) {
+    const W = 1200, H = b.depth === 5 ? this.bakeH.front : this.bakeH.back;
+    const i = this.rtPool.findIndex((r) => r.height === H);
+    const rt = i >= 0 ? this.rtPool.splice(i, 1)[0] : this.add.renderTexture(0, 0, W, H).setOrigin(0, 0);
+    rt.clear().setPosition(b.x0, b.top).setDepth(b.depth).setVisible(true);
+    // include the neighbouring stretches too, so shapes that spill over an edge come out the same in both
+    const gs = (b.depth === 5 ? [b] : this.baked.filter((n) => n.depth === b.depth && Math.abs(n.x0 - b.x0) <= 1000)).flatMap((n) => n.gs).sort((p, q) => p.depth - q.depth);
+    for (const g of gs) { g.setVisible(true); rt.draw(g, -b.x0, -b.top); g.setVisible(false); }
+    b.rt = rt;
+    if (b.depth === 5) {
+      const e = this.earthPool.pop() ?? this.add.rectangle(0, 0, W, 4000, groundColor(this.def.theme)).setOrigin(0, 0).setDepth(4.9);
+      e.setPosition(b.x0, b.bot - 2).setVisible(true);
+      b.earth = e;
+    }
+  }
+
 
   // ---------- set pieces ----------
   stepSetPieces() {

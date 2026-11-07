@@ -8,31 +8,55 @@ export function groundColor(theme: Theme) {
   return ({ lanes: 0x6b3e1d, estuary: 0x6b3e1d, forest: 0x4a2f19, moor: 0x4e3b23, town: 0x8d8d8d } as const)[theme];
 }
 
-function hills(scene: Phaser.Scene, f: number, color: number, base: number, amp: number, freq: number, depth: number, L: number) {
-  const g = scene.add.graphics().setScrollFactor(f, 0.05).setDepth(depth);
-  g.fillStyle(color, 1).beginPath();
-  const y0 = base + 120 * f;
-  g.moveTo(-800, 6000);
-  for (let x = -800; x <= L * f + 2200; x += 80) g.lineTo(x, y0 - amp * (Math.sin(x * freq) * 0.6 + Math.sin(x * freq * 2.3 + 1) * 0.4));
-  g.lineTo(L * f + 2200, 6000).closePath().fillPath();
-  return g;
+/** Background layers are split into chunks (in their own parallax coordinates) so only visible ones draw. */
+export type BackChunk = { g: Phaser.GameObjects.Graphics; x0: number; x1: number; f: number };
+const BCHUNK = 1200;
+function layer(scene: Phaser.Scene, f: number, depth: number, out: BackChunk[]) {
+  const map = new Map<number, Phaser.GameObjects.Graphics>();
+  return (x: number) => {
+    const i = Math.floor(x / BCHUNK);
+    let g = map.get(i);
+    if (!g) {
+      g = scene.add.graphics().setScrollFactor(f, 0.05).setDepth(depth);
+      map.set(i, g);
+      out.push({ g, x0: i * BCHUNK - 200, x1: (i + 1) * BCHUNK + 200, f });
+    }
+    return g;
+  };
 }
 
-function sea(scene: Phaser.Scene, f: number, y: number, depth: number, L: number, boats = 0) {
-  const g = scene.add.graphics().setScrollFactor(f, 0.05).setDepth(depth);
+function hills(scene: Phaser.Scene, out: BackChunk[], f: number, color: number, base: number, amp: number, freq: number, depth: number, L: number) {
+  const at = layer(scene, f, depth, out);
+  const y0 = base + 120 * f;
+  const hy = (x: number) => y0 - amp * (Math.sin(x * freq) * 0.6 + Math.sin(x * freq * 2.3 + 1) * 0.4);
+  for (let cx = Math.floor(-800 / BCHUNK) * BCHUNK; cx <= L * f + 2200; cx += BCHUNK) {
+    const g = at(cx + 1);
+    g.fillStyle(color, 1).beginPath().moveTo(cx, 6000);
+    for (let x = cx; x <= cx + BCHUNK + 80; x += 80) g.lineTo(x, hy(x));
+    g.lineTo(cx + BCHUNK + 80, 6000).closePath().fillPath();
+  }
+  return { at, hy };
+}
+
+function sea(scene: Phaser.Scene, out: BackChunk[], f: number, y: number, depth: number, L: number, boats = 0) {
+  const at = layer(scene, f, depth, out);
   const y0 = y + 120 * f;
-  g.fillStyle(0x3f8fd1, 1).fillRect(-800, y0, L * f + 3000, 6000);
-  g.fillStyle(0x6fb3e8, 1).fillRect(-800, y0, L * f + 3000, 5);
-  g.lineStyle(2, 0xffffff, 0.5);
-  for (let x = -700; x < L * f + 2200; x += 90) g.lineBetween(x, y0 + 18 + (x % 3) * 9, x + 30, y0 + 18 + (x % 3) * 9);
+  for (let cx = Math.floor(-800 / BCHUNK) * BCHUNK; cx <= L * f + 3000; cx += BCHUNK) {
+    const g = at(cx + 1);
+    g.fillStyle(0x3f8fd1, 1).fillRect(cx, y0, BCHUNK + 2, 6000);
+    g.fillStyle(0x6fb3e8, 1).fillRect(cx, y0, BCHUNK + 2, 5);
+    g.lineStyle(2, 0xffffff, 0.5);
+    for (let x = cx + 20; x < cx + BCHUNK; x += 90) g.lineBetween(x, y0 + 18 + (Math.abs(x) % 3) * 9, x + 30, y0 + 18 + (Math.abs(x) % 3) * 9);
+  }
   for (let i = 0; i < boats; i++) {
-    const bx = 200 + i * 520, by = y0 + 14;
+    const bx = 200 + i * 520, by = y0 + 14, g = at(bx);
     g.fillStyle(0xffffff, 1).fillTriangle(bx, by - 4, bx, by - 44, bx + 26, by - 4);
     g.fillStyle(0xd62828, 1).fillRect(bx - 18, by - 4, 50, 9);
   }
 }
 
-export function drawBackdrop(scene: Phaser.Scene, def: LevelDef, W: number, H: number, L: number) {
+export function drawBackdrop(scene: Phaser.Scene, def: LevelDef, W: number, H: number, L: number): BackChunk[] {
+  const out: BackChunk[] = [];
   const sky = scene.add.graphics().setScrollFactor(0).setDepth(-10);
   sky.fillGradientStyle(def.skyTop, def.skyTop, def.skyBottom, def.skyBottom, 1).fillRect(0, 0, W, H);
   const clouds = def.theme === 'moor' ? 20 : 14;
@@ -42,39 +66,39 @@ export function drawBackdrop(scene: Phaser.Scene, def: LevelDef, W: number, H: n
   }
   switch (def.theme) {
     case 'lanes':
-      hills(scene, 0.2, 0x8cc36a, 330, 60, 0.0035, -8, L);
-      hills(scene, 0.45, 0x5fa646, 390, 50, 0.006, -7, L);
+      hills(scene, out, 0.2, 0x8cc36a, 330, 60, 0.0035, -8, L);
+      hills(scene, out, 0.45, 0x5fa646, 390, 50, 0.006, -7, L);
       break;
     case 'estuary':
-      hills(scene, 0.12, 0x8fb39a, 300, 35, 0.004, -8.5, L);   // Exmouth side
-      sea(scene, 0.2, 335, -8, L, Math.ceil(L * 0.2 / 520) + 2);
-      hills(scene, 0.45, 0x6aae4c, 420, 40, 0.005, -7, L);
+      hills(scene, out, 0.12, 0x8fb39a, 300, 35, 0.004, -8.5, L);   // Exmouth side
+      sea(scene, out, 0.2, 335, -8, L, Math.ceil(L * 0.2 / 520) + 2);
+      hills(scene, out, 0.45, 0x6aae4c, 420, 40, 0.005, -7, L);
       break;
     case 'forest': {
-      hills(scene, 0.2, 0x5b8a57, 320, 60, 0.004, -8, L);
-      const g = hills(scene, 0.45, 0x2f6438, 380, 40, 0.006, -7, L);
+      hills(scene, out, 0.2, 0x5b8a57, 320, 60, 0.004, -8, L);
+      const { at, hy } = hills(scene, out, 0.45, 0x2f6438, 380, 40, 0.006, -7, L);
       for (let x = -600; x < L * 0.45 + 2000; x += 46) {
-        const y = 380 + 120 * 0.45 - 40 * (Math.sin(x * 0.006) * 0.6 + Math.sin(x * 0.006 * 2.3 + 1) * 0.4);
-        g.fillStyle(0x24502c, 1).fillTriangle(x, y - 70 - (x % 5) * 6, x - 22, y + 4, x + 22, y + 4);
+        const y = hy(x);
+        at(x).fillStyle(0x24502c, 1).fillTriangle(x, y - 70 - (Math.abs(x) % 5) * 6, x - 22, y + 4, x + 22, y + 4);
       }
       break;
     }
     case 'moor': {
-      const g = hills(scene, 0.2, 0xa7a06a, 330, 70, 0.003, -8, L);
+      const { at, hy } = hills(scene, out, 0.2, 0xa7a06a, 330, 70, 0.003, -8, L);
       for (let x = 300; x < L * 0.2 + 2000; x += 900) {
-        const y = 330 + 24 - 70 * (Math.sin(x * 0.003) * 0.6 + Math.sin(x * 0.003 * 2.3 + 1) * 0.4);
-        g.fillStyle(0x8c8f8a, 1).fillRoundedRect(x - 40, y - 46, 80, 50, 12).fillRoundedRect(x - 20, y - 70, 46, 30, 10);
+        const y = hy(x) + 24;
+        at(x).fillStyle(0x8c8f8a, 1).fillRoundedRect(x - 40, y - 46, 80, 50, 12).fillRoundedRect(x - 20, y - 70, 46, 30, 10);
       }
-      hills(scene, 0.45, 0x8d8a4c, 400, 45, 0.005, -7, L);
+      hills(scene, out, 0.45, 0x8d8a4c, 400, 45, 0.005, -7, L);
       break;
     }
     case 'town': {
-      hills(scene, 0.1, 0x7da486, 300, 30, 0.004, -8.5, L);
-      sea(scene, 0.15, 330, -8, L, Math.ceil(L * 0.15 / 520) + 2);
-      const g = scene.add.graphics().setScrollFactor(0.45, 0.05).setDepth(-7);
+      hills(scene, out, 0.1, 0x7da486, 300, 30, 0.004, -8.5, L);
+      sea(scene, out, 0.15, 330, -8, L, Math.ceil(L * 0.15 / 520) + 2);
+      const at = layer(scene, 0.45, -7, out);
       const colors = [0xf7e6b5, 0xd9e8f5, 0xf5c6c6, 0xffffff, 0xc9e7c9, 0xf3d9a4];
       for (let x = -600, i = 0; x < L * 0.45 + 2000; x += 96, i++) {
-        const h = 90 + ((i * 37) % 70), y = 470 + 54;
+        const h = 90 + ((i * 37) % 70), y = 470 + 54, g = at(x);
         g.fillStyle(colors[i % colors.length], 1).fillRect(x, y - h, 88, h + 6000);
         g.fillStyle(0x6b7a8f, 1).fillTriangle(x - 4, y - h, x + 44, y - h - 34, x + 92, y - h);
         g.fillStyle(0x9fd3ff, 1);
@@ -83,6 +107,7 @@ export function drawBackdrop(scene: Phaser.Scene, def: LevelDef, W: number, H: n
       break;
     }
   }
+  return out;
 }
 
 /** The band right behind the road: hedges, trees, stone walls or race barriers. */
@@ -94,7 +119,10 @@ export function sliced(scene: Phaser.Scene, t: { x: number; y: number }[], depth
   const out: Chunk[] = [];
   const x0 = t[0].x, x1 = t[t.length - 1].x;
   for (let cx = x0; cx < x1; cx += CHUNK) {
-    const pts = t.filter((p, i) => (p.x >= cx && p.x <= cx + CHUNK) || (t[i + 1] && t[i + 1].x > cx && p.x < cx) || (t[i - 1] && t[i - 1].x < cx + CHUNK && p.x > cx + CHUNK));
+    // cut exactly at the chunk edges (+1px) so neighbouring chunks don't paint over each other
+    const a = cx - 1, z = cx + CHUNK + 1;
+    const yAt = (x: number) => { let i = 1; while (i < t.length - 1 && t[i].x < x) i++; const p = t[i - 1], q = t[i]; return p.y + ((x - p.x) / (q.x - p.x || 1)) * (q.y - p.y); };
+    const pts = [{ x: Math.max(a, x0), y: yAt(Math.max(a, x0)) }, ...t.filter((p) => p.x > a && p.x < z), { x: Math.min(z, x1), y: yAt(Math.min(z, x1)) }];
     if (pts.length < 2) continue;
     const g = scene.add.graphics().setDepth(depth);
     draw(g, pts);
@@ -144,9 +172,9 @@ export function drawRoadside(scene: Phaser.Scene, def: LevelDef, gy: GY): Chunk[
     for (let x = x0; x < x1; x += 22) at(x).fillStyle(rnd.pick([0x3f8a3f, 0x4fa34a]), 1).fillTriangle(x, gy(x) - 34, x - 10, gy(x), x + 10, gy(x));
   } else if (def.theme === 'moor') {
     band((x) => 26 + 3 * Math.sin(x * 0.2), 0x8f8f88);
-    for (let x = x0; x < x1; x += 18) {
+    for (let x = x0; x < x1; x += 24) {
       const cg = at(x);
-      cg.fillStyle(rnd.pick([0x7d7d77, 0xa3a39b, 0x6e6e68]), 1).fillRoundedRect(x, gy(x) - rnd.between(18, 28), rnd.between(14, 20), 12, 4);
+      cg.fillStyle(rnd.pick([0x7d7d77, 0xa3a39b, 0x6e6e68]), 1).fillRect(x, gy(x) - rnd.between(18, 28), rnd.between(18, 24), 12);
       if (rnd.frac() < 0.05) {
         cg.fillStyle(0x3f6b2a, 1).fillCircle(x, gy(x) - 34, 18);
         cg.fillStyle(0xffd400, 1);
@@ -178,6 +206,7 @@ export function drawDecor(scene: Phaser.Scene, def: LevelDef, gy: GY, movers: { 
   const txt = (x: number, y: number, s: string, size = 13, depth = 4) =>
     scene.add.text(x, y, s, { fontFamily: 'Arial Black, Arial', fontSize: `${size}px`, color: '#111', backgroundColor: '#fff', padding: { x: 4, y: 2 } }).setOrigin(0.5).setDepth(depth);
   for (const d of def.decor) {
+    (scene as any).cullX = d.x;
     const y = gy(d.x);
     if (d.type === 'sign') {
       const g = scene.add.graphics().setDepth(4);
