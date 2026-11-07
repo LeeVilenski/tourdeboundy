@@ -86,6 +86,9 @@ export class LevelScene extends Phaser.Scene {
   /** World x of whatever is being built right now; Graphics/Text made meanwhile get culled by it. */
   cullX?: number;
   culled: { o: Phaser.GameObjects.Graphics | Phaser.GameObjects.Text; x: number }[] = [];
+  /** Physics bodies that are only kept in the world near the rider (fewer bodies = much cheaper physics). */
+  sleepers: { body: Body; x0: number; x1: number; on: boolean }[] = [];
+  bodyWindowAt = -1e9;
   rtPool: Phaser.GameObjects.RenderTexture[] = [];
   earthPool: Phaser.GameObjects.Rectangle[] = [];
   bakeH = { back: 600, front: 200 };
@@ -158,7 +161,7 @@ export class LevelScene extends Phaser.Scene {
     this.gusts = []; this.inGust = false; this.movers = []; this.lee = undefined; this.andy = undefined;
     this.garminShows = 0; this.garminDone = false; this.rivals = []; this.lapShown = 1;
     this.airborne = false; this.wheelieSteps = 0; this.pendingTrick = undefined; this.camOff = -220; this.camZoom = 1;
-    this.baked = []; this.rtPool = []; this.earthPool = []; this.culled = []; this.cullX = undefined; this.lowDetail = false; this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 }; this.ghostFrames = []; this.ghostPlay = undefined; this.flung = false; this.trains = []; this.slowZones = []; this.slowOn = false; this.stampedes = []; this.confettiAt = []; this.planks = []; this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
+    this.sleepers = []; this.bodyWindowAt = -1e9; this.baked = []; this.rtPool = []; this.earthPool = []; this.culled = []; this.cullX = undefined; this.lowDetail = false; this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 }; this.ghostFrames = []; this.ghostPlay = undefined; this.flung = false; this.trains = []; this.slowZones = []; this.slowOn = false; this.stampedes = []; this.confettiAt = []; this.planks = []; this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
   }
 
   // ---------- terrain helpers ----------
@@ -200,6 +203,12 @@ export class LevelScene extends Phaser.Scene {
     this.buildCheckpoints();
     this.buildCast();
 
+    // only keep nearby physics bodies in the world
+    for (const body of [...(this.matter.world.localWorld as any).bodies] as Body[]) {
+      if (body.label === 'horse') continue; // walkers move about; always keep
+      this.sleepers.push({ body, x0: body.bounds.min.x, x1: body.bounds.max.x, on: true });
+    }
+
     // ---------- particles ----------
     this.blood = this.add.particles(0, 0, 'blood', {
       speed: { min: 80, max: 320 }, angle: { min: 200, max: 340 }, gravityY: 900, lifespan: 900,
@@ -231,6 +240,7 @@ export class LevelScene extends Phaser.Scene {
       // Lee and Andy move on the physics clock, so races stay fair on slow devices
       if (!this.finished) { this.updateLee(this.time.now, 16.67); this.updateAndy(this.time.now, 16.67); this.updateBunch(this.time.now); }
       this.physSteps++;
+      this.updateBodyWindow();
       this.stepGhost();
       this.stepSetPieces();
       this.stepPlanks();
@@ -592,6 +602,8 @@ export class LevelScene extends Phaser.Scene {
 
   spawn(x: number) {
     x = this.safeSpawnX(x);
+    this.bodyWindowAt = x; // make sure the ground is there before the bike drops onto it
+    for (const s of this.sleepers ?? []) { const b = s.body as any; if (b.__gone) continue; const near = s.x1 > x - 1400 && s.x0 < x + 2400; if (near && !s.on) { this.matter.world.add(s.body); s.on = true; } else if (!near && s.on) { this.matter.world.remove(s.body); s.on = false; } }
     this.rider?.destroy();
     this.rider = new Rider(this, x, this.groundY(x) - 42);
     this.upsideDownSince = 0;
@@ -658,6 +670,7 @@ export class LevelScene extends Phaser.Scene {
     const p = this.pickups.find((q) => q.body === body);
     if (!p || p.taken || this.rider.crashed) return;
     p.taken = true;
+    (body as any).__gone = true;
     this.matter.world.remove(body);
     this.tweens.killTweensOf(p.sprite);
     if (p.type === 'cake') {
@@ -878,6 +891,7 @@ export class LevelScene extends Phaser.Scene {
           this.addCombo(200);
           this.toast('COURTEOUS RIDER +1');
         }
+        (h.body as any).__gone = true;
         this.matter.world.remove(h.body);
         h.label.setText(polite ? w.thanks : 'Hmph.');
         this.tweens.add({ targets: [h.sprite, h.label], y: '-=40', alpha: 0, scale: '*=0.8', duration: 1400, delay: 500 });
@@ -1353,6 +1367,25 @@ export class LevelScene extends Phaser.Scene {
       const near = x > p.x0 - 80 && x < p.x1 + 80;
       const on = near && !R.crashed && bottom <= p.top + 10;
       if (on !== p.on) { p.on = on; p.body.collisionFilter.mask = on ? 0xffffffff : 0; }
+    }
+  }
+
+  /** Add bodies near the rider to the physics world and take far ones out (checked every few steps). */
+  updateBodyWindow(force = false) {
+    const R = this.rider;
+    if (!R) return;
+    const x = R.crashed ? R.head.position.x : R.position.x;
+    if (!force && Math.abs(x - this.bodyWindowAt) < 250) return;
+    this.bodyWindowAt = x;
+    const lo = x - 1400, hi = x + 2400;
+    const world = this.matter.world;
+    for (const s of this.sleepers) {
+      const b = s.body as any;
+      if (b.__gone) continue;
+      if (!b.isStatic) { s.x0 = b.bounds.min.x; s.x1 = b.bounds.max.x; } // critters may have moved
+      const near = s.x1 > lo && s.x0 < hi;
+      if (near && !s.on) { world.add(s.body); s.on = true; }
+      else if (!near && s.on) { world.remove(s.body); s.on = false; }
     }
   }
 
