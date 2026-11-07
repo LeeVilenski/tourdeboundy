@@ -3,9 +3,9 @@ import { LEVELS } from './levels';
 // ---------- medals ----------
 export type Medal = 'gold' | 'silver' | 'bronze' | null;
 /** [gold, silver, bronze] finishing times in seconds. */
-// Level 1 is hand-set; the rest scale with level length (about 330 px/s for gold).
+// Level 1 is hand-set; the rest scale with level length (calibrated from real runs: ~430 px/s for gold).
 export const MEDAL_TIMES: Record<number, [number, number, number]> = Object.fromEntries(LEVELS.map((l) => [
-  l.id, l.id === 1 ? [32, 42, 60] : [Math.round(l.finishX / 330), Math.round(l.finishX / 270), Math.round(l.finishX / 200)],
+  l.id, l.id === 1 ? [32, 42, 60] : [Math.round(l.finishX / 430), Math.round(l.finishX / 360), Math.round(l.finishX / 280)],
 ])) as Record<number, [number, number, number]>;
 export const MEDAL_ICON = { gold: '🥇', silver: '🥈', bronze: '🥉' } as const;
 

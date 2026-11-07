@@ -61,7 +61,7 @@ export const LEVEL5: LevelDef = {
   finishX,
   outro: 'Off for a run.',
   skyTop: 0x3f86e8, skyBottom: 0xc9e6ff,
-  par: Math.round(finishX / 120), rankS: Math.round(8000 + (finishX - 9550) * 0.5),
+  par: Math.round(finishX / 200), rankS: Math.round(8000 + (finishX - 9550) * 0.35),
   boss: { sprintX: finishX - 750 },
   laps,
   bunch: { pileX },

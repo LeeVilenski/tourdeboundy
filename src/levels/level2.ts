@@ -79,7 +79,7 @@ export const LEVEL2: LevelDef = {
   finishX,
   outro: 'Boxing session, then a swim.',
   skyTop: 0x4a7fe0, skyBottom: 0xcfe8ff,
-  par: Math.round(finishX / 120), rankS: Math.round(8000 + (finishX - 9550) * 0.5),
+  par: Math.round(finishX / 200), rankS: Math.round(8000 + (finishX - 9550) * 0.35),
   checkpoints: [0, sea + 1300, cock + 1000, climb - 100, summit + 100, kenn + 100, kenn + 1600, back + 100, hill + 400, home + 50],
   obstacles,
   decor,

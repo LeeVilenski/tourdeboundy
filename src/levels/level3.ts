@@ -31,7 +31,7 @@ export const LEVEL3: LevelDef = {
   finishX,
   outro: 'Right, quick 10k run.',
   skyTop: 0x5d8fe0, skyBottom: 0xd6ecff,
-  par: Math.round(finishX / 120), rankS: Math.round(8000 + (finishX - 9550) * 0.5),
+  par: Math.round(finishX / 200), rankS: Math.round(8000 + (finishX - 9550) * 0.35),
   checkpoints: [0, bel + 1000, dog + 100, k1 - 700, cat + 50, carpark + 900, k2 - 600, hiker + 100, tele + 1000, tele + 2300, d2 + 300, d2 + 1600],
   lee: { joinX: carpark - 200, leaveX: k2 - 100, bollards: [carpark + 300, carpark + 700, carpark + 1150] },
   obstacles: [

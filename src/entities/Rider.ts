@@ -224,7 +224,8 @@ export class Rider {
       if (hopTapped && canHop && this.stepCount - this.lastHop > 20) {
         input.hopAt = 0;
         this.lastHop = this.stepCount;
-        const up = 6.2;
+        // power hop: only near full sprint speed does the hop get big enough to clear a horse or a walker
+        const up = 6.2 + Phaser.Math.Clamp((this.speed - 8.0) * 2.4, 0, 3.8);
         for (const { body } of this.parts) B.setVelocity(body, { x: body.velocity.x, y: body.velocity.y - up });
         this.scene.events.emit('hop');
       }

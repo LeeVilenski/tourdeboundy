@@ -53,7 +53,7 @@ const WALKERS: Record<WalkerKind, { tex: string; w: number; h: number; texH: num
   horse: { tex: 'horse', w: 110, h: 112, texH: 120, speed: 0.9, ask: 'Pass wide and slow!', thanks: 'Thank you! 👋', hit: 'NEIGHHH!' },
   dogwalker: { tex: 'dogwalker', w: 90, h: 110, texH: 116, speed: 0.9, ask: 'Dog walker — ease off!', thanks: 'Morning! 👋', hit: 'OI!' },
   hiker: { tex: 'hiker', w: 50, h: 112, texH: 116, speed: 1.0, ask: 'Hiker — ease off!', thanks: 'Cheers! 🥾', hit: 'OI!' },
-  pony: { tex: 'pony', w: 100, h: 90, texH: 96, speed: 0.6, ask: 'Dartmoor pony!', thanks: '(munches grass)', hit: 'NEIGH!' },
+  pony: { tex: 'pony', w: 100, h: 102, texH: 96, speed: 0.6, ask: 'Dartmoor pony!', thanks: '(munches grass)', hit: 'NEIGH!' },
 };
 
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
@@ -814,6 +814,18 @@ export class LevelScene extends Phaser.Scene {
       const w = WALKERS[h.who];
       const gap = h.body.position.x - r.position.x;
       if (gap < 700 && gap > -50) h.label.setAlpha(1);
+      // cleared it in the air without touching? huge style points
+      const hx = h.body.position.x;
+      if (this.airborne && !r.crashed && Math.abs(r.position.x - hx) < w.w / 2 + 40) (h as any).over = true;
+      if (!(h as any).hurdled && (h as any).over && !r.crashed && r.position.x - 70 > hx + w.w / 2) {
+        (h as any).hurdled = true;
+        const pts = h.who === 'horse' ? 1200 : 800;
+        this.stats.trickPoints += pts;
+        this.trickToast(`HURDLED THE ${h.who === 'dogwalker' ? 'DOG WALKER' : h.who.toUpperCase()}!  +${pts}`);
+        this.addCombo(pts);
+        sfx.buzz(40);
+        this.time.delayedCall(500, () => this.say(h.who === 'horse' ? 'Sorry! Sorry! Lovely horse!' : 'Morning! Sorry!'));
+      }
       if (gap > 0 && gap < 450 && Math.abs(r.speed) < 5 && !r.crashed) h.wait += dt; else h.wait = Math.max(0, h.wait - dt * 0.3);
       if (gap < 900) {
         const nx = h.body.position.x + w.speed * (dt / 16.67);
