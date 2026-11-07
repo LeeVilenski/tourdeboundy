@@ -15,12 +15,13 @@ const ford = t.x; t.flat(1000);                // Kennford
 const finishX = ford + 650;
 
 const obstacles: ObstacleDef[] = [
-  { type: 'overtake', triggerX: sea + 200 },
+  { type: 'trainrace', x: sea + 50, len: 2050 },
+  { type: 'log', x: sea + 560 }, { type: 'log', x: sea + 740 }, { type: 'log', x: sea + 920 }, // hop-hop-hop
+  { type: 'overtake', triggerX: sea + 700 },
   { type: 'roller', x: summit + 60, kind: 'bale' },
-  { type: 'door', x: kenn + 250 },
+  { type: 'door', x: kenn + 250, practice: true },
   { type: 'door', x: kenn + 1000 },
-  { type: 'log', x: ford + 520 },
-  { type: 'walker', x: sea + 900, exitX: sea + 1600, who: 'dogwalker' },
+  { type: 'walker', x: ford + 250, exitX: ford + 750, who: 'dogwalker' },
   { type: 'kicker', x: sea + 1750, h: 30, len: 90 },
   { type: 'cat', x: summit + 150 },
   { type: 'kicker', x: summit + 330, h: 82, len: 175, big: true },
@@ -33,7 +34,8 @@ const obstacles: ObstacleDef[] = [
 
 const decor: DecorDef[] = [
   { type: 'board', x: 200, text: 'EXMINSTER' },
-  { type: 'train', x: sea - 200, len: 2800 },
+  { type: 'board', x: kenn - 150, text: 'MIND THE DOORS' },
+  { type: 'cafe', x: kenn + 1750, name: 'KENN CAFÉ' },
   { type: 'boat', x: sea + 600 }, { type: 'boat', x: sea + 1500 },
   { type: 'board', x: sea + 1000, text: 'POWDERHAM' },
   { type: 'board', x: sea + 2000, text: 'STARCROSS' },

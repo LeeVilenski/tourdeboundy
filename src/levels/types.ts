@@ -12,11 +12,15 @@ export type ObstacleDef =
   | { type: 'gust'; x: number; len: number }                      // headwind zone
   | { type: 'gravel'; x: number; len: number; oil?: boolean }     // low grip (oil = diesel spill look)
   | { type: 'log'; x: number }                                    // hop it
-  | { type: 'door'; x: number }                                   // parked van whose door swings open
+  | { type: 'door'; x: number; practice?: boolean }               // parked car whose door swings open (practice = opens early, a demo)
   | { type: 'roller'; x: number; kind: 'bale' | 'boulder' }       // keeps rolling down the hill at you
   | { type: 'dog'; x: number }                                    // chases you: sprint away
   | { type: 'branch'; x: number }                                 // drops from a tree as you pass
   | { type: 'gulls'; x: number; len: number }                     // seagulls swoop to nick yoghurt
+  | { type: 'trainrace'; x: number; len: number }                 // race the train along the sea wall
+  | { type: 'slowmo'; x: number; len: number }                    // slow motion while airborne over here
+  | { type: 'stampede'; x: number }                               // a flock of sheep charges at you
+  | { type: 'confetti'; x: number }                               // crowd goes wild
   | { type: 'hazard'; x: number; len: number; kind: 'water' | 'mud' | 'bog' } // pit floor: crash on touch
   | { type: 'car'; x: number }       // parked car, rideable over the top
   | { type: 'trailer'; x: number }   // hay trailer with bale ramp
@@ -39,7 +43,8 @@ export type DecorDef =
   | { type: 'grid'; x: number }
   | { type: 'palm'; x: number }
   | { type: 'plaque'; x: number; text: string }
-  | { type: 'board'; x: number; text: string };
+  | { type: 'board'; x: number; text: string }
+  | { type: 'cafe'; x: number; name: string };
 
 export interface LevelDef {
   id: number;

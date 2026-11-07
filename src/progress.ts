@@ -1,0 +1,81 @@
+import { LEVELS } from './levels';
+
+// ---------- medals ----------
+export type Medal = 'gold' | 'silver' | 'bronze' | null;
+/** [gold, silver, bronze] finishing times in seconds. */
+export const MEDAL_TIMES: Record<number, [number, number, number]> = {
+  1: [32, 42, 60], 2: [45, 58, 80], 3: [38, 50, 70], 4: [62, 80, 110], 5: [68, 85, 115],
+};
+export const MEDAL_ICON = { gold: '🥇', silver: '🥈', bronze: '🥉' } as const;
+
+export function medalFor(level: number, secs: number): Medal {
+  const [g, s, b] = MEDAL_TIMES[level];
+  return secs <= g ? 'gold' : secs <= s ? 'silver' : secs <= b ? 'bronze' : null;
+}
+
+// ---------- hidden challenges ----------
+export const CHALLENGES: Record<number, { name: string; desc: string }> = {
+  1: { name: 'Cake Refusenik', desc: 'Dodge every cake' },
+  2: { name: 'Garmin Who?', desc: 'Ignore 5 Garmin warnings' },
+  3: { name: 'Clean Sheet', desc: 'No crashes' },
+  4: { name: 'Shepherd', desc: "Don't launch a single sheep" },
+  5: { name: 'Untouchable', desc: 'Beat Andy without crashing' },
+};
+
+const get = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
+const set = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
+const RANK = { gold: 3, silver: 2, bronze: 1 } as const;
+
+export function bestMedal(level: number): Medal { return (get(`tdb-medal-${level}`) as Medal) || null; }
+export function saveMedal(level: number, m: Medal) {
+  if (!m) return false;
+  const prev = bestMedal(level);
+  if (!prev || RANK[m] > RANK[prev]) { set(`tdb-medal-${level}`, m); return true; }
+  return false;
+}
+export function challengeDone(level: number) { return get(`tdb-chal-${level}`) === '1'; }
+export function saveChallenge(level: number) { const was = challengeDone(level); set(`tdb-chal-${level}`, '1'); return !was; }
+
+/** Medal points: bronze 1, silver 2, gold 3, each challenge 2. */
+export function medalPoints() {
+  let p = 0;
+  for (const l of LEVELS) { const m = bestMedal(l.id); if (m) p += RANK[m]; if (challengeDone(l.id)) p += 2; }
+  return p;
+}
+
+import type { RunStats } from './scenes/LevelScene';
+export function challengeMet(s: RunStats): boolean {
+  switch (s.level) {
+    case 1: return s.cakesTotal > 0 && s.cakesRefused === 0;
+    case 2: return s.garminIgnored >= 5;
+    case 3: return s.crashes === 0;
+    case 4: return s.sheepLaunched === 0;
+    case 5: return s.boss === 'won' && s.crashes === 0;
+  }
+  return false;
+}
+
+// ---------- kits ----------
+export interface Kit { id: string; name: string; need: number; head: string; torso: string; arm: string; thigh: string; shin: string }
+export const KITS: Kit[] = [
+  { id: 'race', name: 'Race kit', need: 0, head: 'head', torso: 'torso', arm: 'arm', thigh: 'thigh', shin: 'shin' },
+  { id: 'gilet', name: 'Training gilet', need: 3, head: 'head', torso: 'torso_gilet', arm: 'arm_black', thigh: 'thigh', shin: 'shin' },
+  { id: 'wheelers', name: 'Wheelers #13', need: 6, head: 'head', torso: 'torso_wheelers', arm: 'arm_white', thigh: 'thigh_dark', shin: 'shin' },
+  { id: 'merckx', name: 'Merckx cap', need: 10, head: 'head_merckx', torso: 'torso', arm: 'arm', thigh: 'thigh', shin: 'shin' },
+  { id: 'offduty', name: 'Off duty', need: 15, head: 'head_offduty', torso: 'torso_offduty', arm: 'arm_shirt', thigh: 'thigh_shorts', shin: 'shin_bare' },
+];
+export function currentKit(): Kit {
+  const k = KITS.find((x) => x.id === get('tdb-kit')) || KITS[0];
+  return medalPoints() >= k.need ? k : KITS[0];
+}
+export function chooseKit(id: string) { set('tdb-kit', id); }
+
+// ---------- ghost (best run replay) ----------
+export function loadGhost(level: number): number[] | null {
+  try { const v = get(`tdb-ghost-${level}`); return v ? JSON.parse(v) : null; } catch { return null; }
+}
+export function saveGhost(level: number, frames: number[]) { set(`tdb-ghost-${level}`, JSON.stringify(frames)); }
+
+// ---------- settings ----------
+export function autoPedal() { return get('tdb-autopedal') !== '0'; }
+export function setAutoPedal(on: boolean) { set('tdb-autopedal', on ? '1' : '0'); }

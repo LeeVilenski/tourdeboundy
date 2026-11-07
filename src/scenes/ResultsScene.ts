@@ -6,6 +6,7 @@ import { scenery, bestTime, fmtTime } from './MenuScene';
 import { RES } from '../textures';
 import { sfx } from '../sfx';
 import { scoreRun, bestScore, saveBestScore, unlock, unlockedCount } from '../score';
+import { medalFor, saveMedal, MEDAL_ICON, challengeMet, saveChallenge, CHALLENGES, KITS, medalPoints, MEDAL_TIMES } from '../progress';
 
 export class ResultsScene extends Phaser.Scene {
   constructor() { super('Results'); }
@@ -142,9 +143,29 @@ export class ResultsScene extends Phaser.Scene {
     this.tweens.add({ targets: stamp, scale: 1, alpha: 1, delay: tickDelay + 950, duration: 280, ease: 'Back.out',
       onStart: () => sfx.pickup() });
 
+    // medals, hidden challenge, kit unlocks
+    const ptsBefore = medalPoints();
+    const medal = lost ? null : medalFor(stats.level, stats.timeMs / 1000);
+    saveMedal(stats.level, medal);
+    const chal = !lost && challengeMet(stats);
+    const chalNew = chal && saveChallenge(stats.level);
+    const newKits = KITS.filter((k) => k.need > ptsBefore && k.need <= medalPoints());
+    const [gT, sT, bT] = MEDAL_TIMES[stats.level];
+    const medalText = medal ? `${MEDAL_ICON[medal]} ${medal.toUpperCase()}` : `No medal (bronze ${bT}s)`;
+    const nextTarget = medal === 'gold' ? '' : medal === 'silver' ? `  ·  gold ${gT}s` : medal === 'bronze' ? `  ·  silver ${sT}s` : '';
+    const award = this.add.text(cx, lineY + 92, `${medalText}${nextTarget}${chal ? `   ⭐ ${CHALLENGES[stats.level].name}${chalNew ? '!' : ''}` : ''}`, {
+      fontFamily: 'Arial Black, Arial', fontSize: '18px', color: '#fff',
+    }).setOrigin(0.5).setScale(0);
+    this.tweens.add({ targets: award, scale: 1, delay: tickDelay + 1300, duration: 300, ease: 'Back.out' });
+    if (newKits.length) {
+      const kt = this.add.text(cx, 30, `🎽 NEW KIT UNLOCKED: ${newKits.map((k) => k.name).join(', ')}`, {
+        fontFamily: 'Arial Black, Arial', fontSize: '20px', color: '#111', backgroundColor: '#7CFC8A', padding: { x: 12, y: 6 },
+      }).setOrigin(0.5).setDepth(60).setAlpha(0);
+      this.tweens.add({ targets: kt, alpha: 1, delay: tickDelay + 1800, duration: 400 });
+    }
     const verdict = stats.crashes === 0 ? 'Clean ride. Suspiciously sensible.'
       : stats.crashes > 5 ? 'Daredevil rating: off the charts.' : 'A tidy bit of carnage.';
-    this.add.text(cx, lineY + 92, verdict, { fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold italic', fontSize: '18px', color: '#ffd400' }).setOrigin(0.5);
+    this.add.text(cx, lineY + 120, verdict, { fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold italic', fontSize: '18px', color: '#ffd400' }).setOrigin(0.5);
 
     const btn = (x: number, label: string, color: number, fn?: () => void) => {
       const t = this.add.text(x, 560, label, {

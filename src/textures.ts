@@ -360,6 +360,78 @@ export function makeTextures(scene: Phaser.Scene) {
     npcHead(`head_r${i + 1}`, { hair: ['#2b1a0e', '#d9a066', '#111'][i], helmet: ['#ffffff', '#ff7a1a', '#222'][i], glasses: '#111', lens: ['#ff5fa2', '#5fd0ff', '#ffd400'][i], mouth: 'flat', stubble: 'rgba(0,0,0,.08)' });
   });
 
+
+  // ================= Unlockable kits for Will =================
+  const willHead = (key: string, extra: (ctx: CanvasRenderingContext2D, c: number) => void, helmet = true) => make(scene, key, 40, 40, (ctx) => {
+    const c = 20;
+    ctx.fillStyle = GINGER; ctx.beginPath(); ctx.ellipse(c - 10, c + 2, 4, 6, 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = SKIN; ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.arc(c, c + 1, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(c - 3, c + 2, 2.5, 3.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(c + 10, c + 1); ctx.quadraticCurveTo(c + 15, c + 4, c + 10, c + 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = GINGER; ctx.beginPath(); ctx.ellipse(c + 8, c + 7, 5, 2, -0.1, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(c + 6, c + 8, 3.5, 0.2, 1.7); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(c + 6, c + 8.5, 2.6, 0.1, 1.6); ctx.fill();
+    if (helmet) {
+      ctx.fillStyle = '#f4f6f8'; ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.moveTo(c - 14, c - 1); ctx.quadraticCurveTo(c - 12, c - 15, c + 2, c - 14);
+      ctx.quadraticCurveTo(c + 13, c - 13, c + 13, c - 4); ctx.lineTo(c - 14, c - 1); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    extra(ctx, c);
+  });
+  const whiteShades = (ctx: CanvasRenderingContext2D, c: number) => {
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.roundRect(c + 1, c - 4, 12, 6, 2.5); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#c7a6d8'; ctx.beginPath(); ctx.roundRect(c + 4, c - 3, 8, 4, 1.5); ctx.fill();
+  };
+  // Eddy Merckx cotton cap peeking out under the helmet
+  willHead('head_merckx', (ctx, c) => {
+    ctx.fillStyle = '#ecebe4'; ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.ellipse(c + 12, c - 3, 6, 2, -0.1, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillRect(c - 12, c - 3, 22, 3);
+    ctx.fillStyle = '#111'; ctx.font = '900 3px Arial'; ctx.fillText('MERCKX', c - 10, c - 0.6);
+    whiteShades(ctx, c);
+  });
+  // off duty: backwards blue cap + aviators
+  willHead('head_offduty', (ctx, c) => {
+    ctx.fillStyle = GINGER; ctx.beginPath(); ctx.arc(c - 2, c - 6, 9, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#2156b5'; ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(c, c - 4, 11.5, Math.PI * 1.05, Math.PI * 1.95); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(c - 13, c - 4, 6, 2, 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.ellipse(c + 7, c - 1, 4.5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#c9a227'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(c - 3, c - 2); ctx.lineTo(c + 3, c - 2); ctx.stroke();
+  }, false);
+
+  const kitTorso = (key: string, paint: (ctx: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number) => void) =>
+    make(scene, key, 52, 24, (ctx) => {
+      const x0 = 5, y0 = 3, w = 42, h = 18;
+      ctx.save(); ctx.beginPath(); ctx.roundRect(x0, y0, w, h, 8); ctx.clip(); paint(ctx, x0, y0, w, h); ctx.restore();
+      ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.roundRect(x0, y0, w, h, 8); ctx.stroke();
+    });
+  kitTorso('torso_gilet', (ctx, x0, y0, w, h) => {
+    ctx.fillStyle = NAVY; ctx.fillRect(x0, y0, 12, h);
+    ctx.fillStyle = '#151515'; ctx.fillRect(x0 + 12, y0, w - 12, h);
+    ctx.fillStyle = '#7d7a3e'; ctx.fillRect(x0 + 12, y0 + 3, w - 16, h - 6);
+    ctx.strokeStyle = '#3a3a1e'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x0 + 12, y0 + h / 2); ctx.lineTo(x0 + w - 4, y0 + h / 2); ctx.stroke();
+  });
+  kitTorso('torso_wheelers', (ctx, x0, y0, w, h) => {
+    ctx.fillStyle = '#151515'; ctx.fillRect(x0, y0, 12, h);
+    ctx.fillStyle = '#f4f4f4'; ctx.fillRect(x0 + 12, y0, w - 12, h);
+    ctx.fillStyle = '#e8ff2a'; ctx.fillRect(x0 + 16, y0 + 2, 14, 14);
+    ctx.fillStyle = '#111'; ctx.font = '900 9px Arial'; ctx.fillText('13', x0 + 17.5, y0 + 13);
+  });
+  kitTorso('torso_offduty', (ctx, x0, y0, w, h) => {
+    ctx.fillStyle = '#9cc3e8'; ctx.fillRect(x0, y0, 12, h);
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1; for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(x0 + i * 2, y0); ctx.lineTo(x0 + i * 2, y0 + h); ctx.stroke(); }
+    ctx.fillStyle = '#6f8a55'; ctx.fillRect(x0 + 12, y0, w - 12, h);
+    ctx.fillStyle = '#4e6a3a'; for (let i = 0; i < 7; i++) { ctx.beginPath(); ctx.ellipse(x0 + 16 + (i % 4) * 7, y0 + 4 + Math.floor(i / 4) * 8, 2.5, 1.2, i, 0, Math.PI * 2); ctx.fill(); }
+  });
+  make(scene, 'arm_black', 50, 14, (ctx) => capsule(ctx, 38, 7, 50, 14, [{ to: 0.85, color: '#151515' }, { to: 1, color: SKIN }]));
+  make(scene, 'arm_white', 50, 14, (ctx) => capsule(ctx, 38, 7, 50, 14, [{ to: 0.4, color: '#f4f4f4' }, { to: 1, color: SKIN }]));
+  make(scene, 'arm_shirt', 50, 14, (ctx) => capsule(ctx, 38, 7, 50, 14, [{ to: 0.35, color: '#6f8a55' }, { to: 1, color: SKIN }]));
+  make(scene, 'thigh_shorts', 42, 16, (ctx) => capsule(ctx, 31, 10, 42, 16, [{ to: 0.6, color: '#9cc3e8' }, { to: 1, color: SKIN }]));
+  make(scene, 'shin_bare', 40, 14, (ctx) => capsule(ctx, 28, 8, 40, 14, [{ to: 0.85, color: SKIN }, { to: 1, color: '#f2f2f2' }]));
+
   // ================= Critters + people =================
   make(scene, 'sheep', 52, 38, (ctx) => {
     ctx.strokeStyle = OUTLINE; ctx.lineWidth = 2;
@@ -411,6 +483,7 @@ export function makeTextures(scene: Phaser.Scene) {
     line(ctx, [[40, 30], [34, 10]], 3, '#e5e5e5');
     ctx.fillStyle = '#111'; ctx.fillRect(28, 6, 12, 4);
   });
+  make(scene, 'confetti', 8, 5, (ctx) => { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 8, 5); });
   make(scene, 'streak', 60, 4, (ctx) => { ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillRect(0, 1, 60, 2); });
   make(scene, 'train', 460, 70, (ctx) => {
     ctx.strokeStyle = OUTLINE; ctx.lineWidth = 2.5;

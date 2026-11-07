@@ -45,6 +45,7 @@ export const LEVEL3: LevelDef = {
     { type: 'kicker', x: carpark + 1240, h: 82, len: 175, big: true },
     { type: 'kicker', x: k2 + 40, h: 46, len: 175 },
     { type: 'hazard', x: k2 + 220, len: 220, kind: 'mud' },
+    { type: 'slowmo', x: k2 + 150, len: 420 },
     { type: 'gravel', x: gravel2 + 300, len: 500 },
     { type: 'walker', x: hiker + 400, exitX: hiker + 900, who: 'hiker' },
     { type: 'debris', x: end + 250 },
@@ -53,6 +54,7 @@ export const LEVEL3: LevelDef = {
     { type: 'board', x: 150, text: 'HALDON FOREST' },
     { type: 'sign', x: k1 - 150, text: 'MUD', icon: 'pothole' },
     { type: 'board', x: carpark + 80, text: 'CAR PARK' },
+    { type: 'cafe', x: carpark + 500, name: 'HALDON CAFÉ' },
     { type: 'sign', x: k2 - 150, text: 'BIG MUD', icon: 'pothole' },
   ],
   pickups: [

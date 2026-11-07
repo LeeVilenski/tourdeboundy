@@ -247,6 +247,16 @@ export function drawDecor(scene: Phaser.Scene, def: LevelDef, gy: GY, movers: { 
       for (const a of [-2.6, -2.0, -1.4, -0.8, -0.3, 0.3]) {
         g.fillTriangle(d.x + 30, y - 232, d.x + 30 + Math.cos(a) * 110, y - 232 + Math.sin(a) * 50 + 40, d.x + 30 + Math.cos(a) * 90, y - 232 + Math.sin(a) * 50 + 56);
       }
+    } else if (d.type === 'cafe') {
+      const g = scene.add.graphics().setDepth(1.6);
+      g.fillStyle(0xf7e6b5, 1).lineStyle(3, 0x111111, 1).fillRect(d.x - 110, y - 170, 220, 170).strokeRect(d.x - 110, y - 170, 220, 170);
+      g.fillStyle(0x6b3e1d, 1).fillTriangle(d.x - 125, y - 168, d.x, y - 235, d.x + 125, y - 168);
+      for (let i = 0; i < 8; i++) g.fillStyle(i % 2 ? 0xffffff : 0xd62828, 1).fillRect(d.x - 110 + i * 27.5, y - 140, 27.5, 22);
+      g.fillStyle(0x9fd3ff, 1).fillRect(d.x - 90, y - 110, 70, 50).fillRect(d.x + 20, y - 110, 70, 50);
+      const t = scene.add.graphics().setDepth(4);
+      t.fillStyle(0x444444, 1).fillRect(d.x - 160, y - 34, 4, 34).fillRect(d.x - 196, y - 34, 4, 34).fillRect(d.x - 205, y - 38, 58, 6);
+      t.fillStyle(0xffffff, 1).fillRect(d.x - 196, y - 48, 9, 10).fillRect(d.x - 170, y - 48, 9, 10);
+      scene.add.text(d.x, y - 152, `☕ ${d.name}`, { fontFamily: 'Arial Black, Arial', fontSize: '14px', color: '#111' }).setOrigin(0.5).setDepth(1.7);
     } else if (d.type === 'plaque') {
       const g = scene.add.graphics().setDepth(4);
       g.fillStyle(0x444444, 1).fillRect(d.x - 3, y - 100, 6, 100);

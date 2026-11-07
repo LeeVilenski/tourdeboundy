@@ -43,6 +43,7 @@ for (let lap = 1; lap <= 3; lap++) {
   }
 }
 const straight = t.x; t.flat(1900);                   // the final sprint
+obstacles.push({ type: 'confetti', x: straight + 50 });
 const finishX = straight + 1250;
 decor.push({ type: 'board', x: straight + 200, text: '1 KM TO GO' }, { type: 'palm', x: straight + 800 });
 checkpoints.push(straight - 300);

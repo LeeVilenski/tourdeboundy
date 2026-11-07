@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
 import { RES } from '../textures';
+import { currentKit, Kit } from '../progress';
 
 type Body = MatterJS.BodyType;
 type Constraint = MatterJS.ConstraintType;
 type Vec = { x: number; y: number };
 
-export interface Controls { pedal: boolean; brake: boolean; leanBack: boolean; leanFwd: boolean; sprint: boolean; hop: boolean; hopAt?: number }
+export interface Controls { pedal: boolean; brake: boolean; leanBack: boolean; leanFwd: boolean; sprint: boolean; hop: boolean; hopAt?: number; cruise?: boolean }
 
 const GROUP = -7; // bike and rider parts never collide with each other
 
@@ -48,6 +49,7 @@ export class Rider {
   stamina = 1;
   private origin: Vec;
 
+  kit: Kit = currentKit();
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.scene = scene;
     this.origin = { x, y };
@@ -119,25 +121,25 @@ export class Rider {
     // --- Rider ---
     const knee = this.kneeFor(this.crankPoint(0));
     const foot = this.crankPoint(0);
-    this.torso = this.limb(HIP, SHOULDER, 15, 'torso', 'torso', 13);
-    const thigh = this.limb(HIP, knee, 10, 'thigh', 'limb', 14);
-    const shin = this.limb(knee, foot, 8, 'shin', 'limb', 14);
-    const arm = this.limb(SHOULDER, HANDS, 7, 'arm', 'limb', 15);
+    this.torso = this.limb(HIP, SHOULDER, 15, this.kit.torso, 'torso', 13);
+    const thigh = this.limb(HIP, knee, 10, this.kit.thigh, 'limb', 14);
+    const shin = this.limb(knee, foot, 8, this.kit.shin, 'limb', 14);
+    const arm = this.limb(SHOULDER, HANDS, 7, this.kit.arm, 'limb', 15);
     this.thighPart = this.parts.find((q) => q.body === thigh)!;
     this.shinPart = this.parts.find((q) => q.body === shin)!;
     const sc = this.scene;
     this.ikLegs = [
-      sc.add.image(0, 0, 'thigh').setScale(1 / RES).setDepth(9).setTint(0x9aa0b5),
-      sc.add.image(0, 0, 'shin').setScale(1 / RES).setDepth(9).setTint(0x9aa0b5),
-      sc.add.image(0, 0, 'thigh').setScale(1 / RES).setDepth(14),
-      sc.add.image(0, 0, 'shin').setScale(1 / RES).setDepth(14),
+      sc.add.image(0, 0, this.kit.thigh).setScale(1 / RES).setDepth(9).setTint(0x9aa0b5),
+      sc.add.image(0, 0, this.kit.shin).setScale(1 / RES).setDepth(9).setTint(0x9aa0b5),
+      sc.add.image(0, 0, this.kit.thigh).setScale(1 / RES).setDepth(14),
+      sc.add.image(0, 0, this.kit.shin).setScale(1 / RES).setDepth(14),
     ];
     this.cranks = sc.add.graphics().setDepth(12);
     const hp = this.w(HEAD);
     this.head = M.add.circle(hp.x, hp.y, 12, {
       label: 'head', density: 0.0008, friction: 0.5, collisionFilter: filter,
     }) as Body;
-    this.addPart(this.head, 'head', 16);
+    this.addPart(this.head, this.kit.head, 16);
 
     // body joints (kept after a crash -> ragdoll)
     this.pin(this.torso, thigh, this.w(HIP));
@@ -170,6 +172,9 @@ export class Rider {
   rearDown = false;
   frontDown = false;
   leanAmt = 0;
+  landSlope = 0;   // slope of the ground under/ahead of the bike (set by the level)
+  airSpin = 0;     // rotation so far this jump (set by the level)
+  rescueSteps = 0;
   hopHeld = false;
   lastHop = -100;
   stepCount = 0;
@@ -194,7 +199,7 @@ export class Rider {
       else this.stamina = Math.min(1, this.stamina + 0.0015);
       const maxAV = sprinting ? 0.66 : boosted ? 0.6 : 0.52;
       const grounded = this.wheelsDown();
-      if (input.pedal || sprinting) {
+      if (input.pedal || input.cruise || sprinting) {
         // ease up to speed: strong push from slow, tapering near the top
         const av = this.rear.angularVelocity;
         const accel = (sprinting ? 0.07 : 0.05) * Math.max(0.15, 1 - av / maxAV);
@@ -214,7 +219,9 @@ export class Rider {
       // hop (bunny hop): pop both wheels off the ground
       // a tap is remembered briefly so it can't fall between physics steps
       const hopTapped = !!input.hopAt && performance.now() - input.hopAt < 180;
-      if (hopTapped && grounded && this.stepCount - this.lastHop > 20) {
+      // 'coyote' window: still allowed a few steps after leaving the ground
+      const canHop = this.stepCount - Math.max(this.lastRear, this.lastFront) <= 9;
+      if (hopTapped && canHop && this.stepCount - this.lastHop > 20) {
         input.hopAt = 0;
         this.lastHop = this.stepCount;
         const up = 6.2;
@@ -230,10 +237,16 @@ export class Rider {
       if (!grounded) {
         // in the air: spin bike + rider together like one body (flips!)
         // steady, capped spin rate (about one flip a second); letting go stops it quickly
-        const target = Math.abs(L) > 0.05 ? L * 0.13 : cur * 0.8;
+        // not leaning: gently line up with the ground below so normal jumps land cleanly
+        const levelUp = Phaser.Math.Clamp(Phaser.Math.Angle.Wrap(this.landSlope - this.frame.angle) * 0.06, -0.05, 0.05);
+        const target = Math.abs(L) > 0.05 ? L * 0.13 : (Math.abs(this.airSpin) > 1.6 ? cur * 0.8 : levelUp);
         const speedingUp = Math.abs(target) > Math.abs(cur) && Math.sign(target) === Math.sign(cur || target);
         const maxStep = speedingUp ? 0.009 : 0.02;
         this.spin(Phaser.Math.Clamp(target - cur, -maxStep, maxStep));
+      } else if (this.rescueSteps > 0) {
+        // 'SAVED IT!': a sketchy landing gets pulled back onto both wheels
+        this.rescueSteps--;
+        this.spin(Phaser.Math.Clamp(Phaser.Math.Angle.Wrap(this.landSlope - this.frame.angle) * 0.25 - cur, -0.03, 0.03));
       } else if (Math.abs(L) > 0.05) {
         const dir = Math.sign(L);
         const tooFar = dir * this.frame.angle > 0.9; // stop wheelies/stoppies at ~50 degrees

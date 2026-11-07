@@ -4,6 +4,7 @@ import { LEVEL_NAMES, LEVELS } from '../levels';
 import { isTouch } from '../ui/input';
 import { sfx } from '../sfx';
 import { bestScore, unlockedCount } from '../score';
+import { bestMedal, challengeDone, MEDAL_ICON, KITS, medalPoints, currentKit, chooseKit, autoPedal, setAutoPedal, CHALLENGES } from '../progress';
 
 export function bestTime(level: number): number | null {
   try { const v = localStorage.getItem(`tdb-best-${level}`); return v ? Number(v) : null; } catch { return null; }
@@ -62,7 +63,9 @@ export class MenuScene extends Phaser.Scene {
       const sub = this.add.text(0, 50, unlocked ? (hi && best ? `★ ${hi.toLocaleString()} · ${fmtTime(best)}` : 'RIDE ▶') : '🔒 Finish level ' + i, {
         fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '15px', color: unlocked ? '#ffd400' : '#ccc',
       }).setOrigin(0.5);
-      card.add([bg, num, nm, sub]);
+      const m = unlocked ? bestMedal(i + 1) : null;
+      const badges = this.add.text(78, -62, `${m ? MEDAL_ICON[m] : ''}${challengeDone(i + 1) ? '⭐' : ''}`, { fontSize: '22px' }).setOrigin(1, 0);
+      card.add([bg, num, nm, sub, badges]);
       if (unlocked) {
         bg.setInteractive({ useHandCursor: true });
         bg.on('pointerover', () => card.setScale(1.06));
@@ -77,6 +80,30 @@ export class MenuScene extends Phaser.Scene {
     this.add.text(W / 2, 410, help, {
       fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '19px', color: '#fff', backgroundColor: '#1d2b4fcc', padding: { x: 14, y: 8 },
     }).setOrigin(0.5);
+
+    // kit picker + auto-pedal toggle
+    const pts = medalPoints();
+    let ki = Math.max(0, KITS.findIndex((k) => k.id === currentKit().id));
+    let kitWill: Phaser.GameObjects.Container | undefined;
+    const kitLabel = this.add.text(W / 2, 475, '', { fontFamily: 'Arial Black, Arial', fontSize: '20px', color: '#fff', backgroundColor: '#1d2b4fcc', padding: { x: 14, y: 8 } }).setOrigin(0.5);
+    const showKit = () => {
+      const k = KITS[ki], locked = pts < k.need;
+      kitLabel.setText(locked ? `KIT: ${k.name}  🔒 ${k.need} medal pts (you have ${pts})` : `KIT: ${k.name}`);
+      if (!locked) chooseKit(k.id);
+      kitWill?.destroy();
+      kitWill = willOnBike(this, W / 2 + 420, 610, 1.1, locked ? KITS[0] : k);
+      if (locked) kitWill.setAlpha(0.4);
+    };
+    const arrow = (x: number, t: string, d: number) => this.add.text(x, 475, t, { fontFamily: 'Arial Black, Arial', fontSize: '30px', color: '#ffd400', stroke: '#111', strokeThickness: 5 })
+      .setOrigin(0.5).setInteractive({ useHandCursor: true }).on('pointerdown', () => { ki = (ki + d + KITS.length) % KITS.length; sfx.click(); showKit(); });
+    arrow(W / 2 - 300, '◀', -1); arrow(W / 2 + 300 - 60, '▶', 1);
+    showKit();
+    this.add.text(W / 2, 520, 'Earn medal points: 🥉1 🥈2 🥇3 per level, ⭐2 per hidden challenge', { fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '15px', color: '#fff', stroke: '#1d2b4f', strokeThickness: 4 }).setOrigin(0.5);
+    const ap = this.add.text(20, 20, '', { fontFamily: 'Arial Black, Arial', fontSize: '16px', color: '#111', backgroundColor: '#ffd400', padding: { x: 10, y: 6 } }).setInteractive({ useHandCursor: true });
+    const apShow = () => ap.setText(`AUTO-PEDAL: ${autoPedal() ? 'ON' : 'OFF'}`);
+    ap.on('pointerdown', () => { setAutoPedal(!autoPedal()); sfx.click(); apShow(); });
+    apShow();
+    void CHALLENGES;
 
     const mute = this.add.text(W - 20, 20, sfx.muted ? '🔇' : '🔊', { fontSize: '34px' }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
     mute.on('pointerdown', () => mute.setText(sfx.toggle() ? '🔇' : '🔊'));

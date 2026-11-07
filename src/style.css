@@ -12,6 +12,8 @@ html, body { margin: 0; height: 100%; background: #1d2b4f; overflow: hidden;
   font-weight: 800; font-size: 16px; color: #fff; }
 #hud-speed { min-width: 92px; text-align: center; transition: background .2s; }
 #hud-speed.fast { background: rgba(214,40,40,.85); }
+#hud-combo { background: rgba(124,252,138,.9); color: #111; border-color: #111; }
+#hud-combo.pop { animation: pop .25s cubic-bezier(.2,1.6,.4,1); }
 #btn-pause { position: absolute; top: 10px; right: 12px; pointer-events: auto; cursor: pointer; }
 #stamina { position: relative; width: 160px; height: 22px; border: 2px solid #fff; border-radius: 999px;
   background: rgba(20,30,60,.75); overflow: hidden; }
@@ -40,6 +42,7 @@ html, body { margin: 0; height: 100%; background: #1d2b4f; overflow: hidden;
 #touch button.sprint { background: rgba(230,150,0,.7); }
 #touch .stack { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 #touch button.hop { width: 70px; height: 70px; background: rgba(44,123,229,.75); }
+#touch button.pedal.cruise { box-shadow: 0 0 0 5px #7CFC8A, 0 0 18px #7CFC8A; }
 #touch button.down { transform: scale(.92); filter: brightness(1.4); }
 
 #rotate { display: none; position: fixed; inset: 0; background: #1d2b4f; z-index: 50; flex-direction: column;

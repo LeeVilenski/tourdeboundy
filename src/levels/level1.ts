@@ -76,6 +76,7 @@ export const LEVEL1: LevelDef = {
     { type: 'sign', x: 1000, text: 'CATS', icon: 'cat' },
     { type: 'sign', x: 2650, text: 'HORSES', icon: 'horse' },
     { type: 'gate', x: 3850 },
+    { type: 'cafe', x: 4380 + 140, name: 'FARM CAFÉ' },
     { type: 'cows', x: 2200 },
     { type: 'sign', x: 3900, text: 'POTHOLES', icon: 'pothole' },
     { type: 'tractor', x: 1900 },

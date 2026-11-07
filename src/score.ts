@@ -19,10 +19,13 @@ export function scoreRun(s: RunStats): { lines: ScoreLine[]; total: number; rank
   if (s.walkersTotal) lines.push({ label: 'Polite passes', value: `${s.politePasses} / ${s.walkersTotal}`, points: s.politePasses * 400 - s.walkersBumped * 250 });
   if (s.hasCats) lines.push({ label: 'Cats launched', value: `${s.catsLaunched}`, points: s.catsLaunched * 50 });
   if (s.hasSheep) lines.push({ label: 'Sheep launched', value: `${s.sheepLaunched}`, points: s.sheepLaunched * 50 });
+  s = { ...s, trickPoints: s.trickPoints ?? 0, flips: s.flips ?? 0, comboPoints: s.comboPoints ?? 0, bestCombo: s.bestCombo ?? 0 };
   lines.push({ label: 'Tricks', value: s.flips ? `${s.flips} flip${s.flips > 1 ? 's' : ''}` : s.trickPoints ? 'Some' : 'None', points: s.trickPoints });
+  if (s.comboPoints) lines.push({ label: 'Combos', value: `best ×${s.bestCombo}`, points: s.comboPoints });
   if (s.hasDog) lines.push({ label: 'Dog bites', value: `${s.bites}`, points: -s.bites * 150 });
   if (s.hasGulls) lines.push({ label: 'Yoghurts nicked', value: `${s.stolen}`, points: 0 });
   if (s.hasLee) lines.push({ label: "Lee's bollards", value: `${s.bollards}`, points: s.bollards * 25 });
+  for (const l of lines) if (!Number.isFinite(l.points)) l.points = 0;
   const total = Math.max(0, lines.reduce((t, l) => t + l.points, 0));
   const S = def.rankS;
   const rank = s.boss === 'lost' ? 'D' : total >= S ? 'S' : total >= S * 0.8 ? 'A' : total >= S * 0.62 ? 'B' : total >= S * 0.38 ? 'C' : 'D';

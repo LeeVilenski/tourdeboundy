@@ -2,7 +2,10 @@ import Phaser from 'phaser';
 import { Rider } from '../entities/Rider';
 import { LevelDef, Pt, PickupType } from '../levels/types';
 import { LEVELS } from '../levels';
-import { input, isTouch } from '../ui/input';
+import { input, isTouch, stopCruise } from '../ui/input';
+import { loadGhost, saveGhost } from '../progress';
+import { willOnBike } from '../entities/WillSprite';
+import { bestTime } from './MenuScene';
 import { hud } from '../ui/hud';
 import { RES } from '../textures';
 import { WILL_LINES, CRASH_LINES, GARMIN_MSGS, GARMIN_REPLIES, CAKE_LINES, LEE_JOIN, LEE_CRASH, LEE_LEAVE, ANDY_TAUNTS } from '../lines';
@@ -41,6 +44,9 @@ export interface RunStats {
   bites: number;
   hasGulls: boolean;
   stolen: number;
+  comboPoints: number;
+  bestCombo: number;
+  ghost?: number[];
 }
 
 const WALKERS: Record<WalkerKind, { tex: string; w: number; h: number; texH: number; speed: number; ask: string; thanks: string; hit: string }> = {
@@ -76,6 +82,16 @@ export class LevelScene extends Phaser.Scene {
   speedLines!: Phaser.GameObjects.Particles.ParticleEmitter;
   chunks: Chunk[] = [];
   lowDetail = false;
+  combo = { count: 0, pts: 0, lastStep: 0, slow: 0 };
+  ghostFrames: number[] = [];
+  ghostPlay?: { frames: number[]; c: Phaser.GameObjects.Container };
+  flung = false;
+  flingFrom = 0;
+  trains: { x: number; endX: number; state: 'wait' | 'race' | 'done'; tx: number; img?: Phaser.GameObjects.Image }[] = [];
+  slowZones: { x: number; len: number }[] = [];
+  slowOn = false;
+  stampedes: { x: number; fired: boolean; sheep: { body: Body; sprite: Phaser.GameObjects.Image; dodged: boolean }[]; until: number }[] = [];
+  confettiAt: { x: number; fired: boolean }[] = [];
   movers: { img: Phaser.GameObjects.Image; x0: number; x1: number; v: number }[] = [];
   lee?: { npc: NpcRider; state: 'off' | 'riding' | 'down' | 'gone'; x: number; hit: Set<number>; downUntil: number; bubble?: Phaser.GameObjects.Text; bubbleUntil: number };
   andy?: { npc: NpcRider; state: 'sitting' | 'sprint' | 'done'; x: number; v: number; nextTaunt: number; bubble?: Phaser.GameObjects.Text; bubbleUntil: number };
@@ -89,7 +105,7 @@ export class LevelScene extends Phaser.Scene {
   camOff = -220; camZoom = 1;
   // hazards
   physSteps = 0;
-  doors: { x: number; trigger: number; state: 'shut' | 'open' | 'done'; shutAt?: number; body?: Body; door: Phaser.GameObjects.Rectangle; lights: Phaser.GameObjects.Graphics }[] = [];
+  doors: { x: number; trigger: number; practice?: boolean; state: 'shut' | 'open' | 'done'; shutAt?: number; body?: Body; door: Phaser.GameObjects.Rectangle; lights: Phaser.GameObjects.Graphics }[] = [];
   rollers: { x: number; kind: 'bale' | 'boulder'; next: number; live: { body: Body; sprite: Phaser.GameObjects.Image; born: number }[] }[] = [];
   dogs: { x: number; state: 'wait' | 'chase' | 'done'; dx: number; until: number; biteCool: number; bitten?: number; sprite: Phaser.GameObjects.Image }[] = [];
   branches: { x: number; trigger: number; dropped: boolean }[] = [];
@@ -123,6 +139,7 @@ export class LevelScene extends Phaser.Scene {
       trickPoints: 0, flips: 0,
       hasDog: this.def.obstacles.some((o) => o.type === 'dog'), bites: 0,
       hasGulls: this.def.obstacles.some((o) => o.type === 'gulls'), stolen: 0,
+      comboPoints: 0, bestCombo: 0,
     };
     this.lastCp = this.def.checkpoints[0];
     this.finished = false; this.paused = false; this.respawnAt = 0; this.elapsed = 0;
@@ -131,7 +148,7 @@ export class LevelScene extends Phaser.Scene {
     this.gusts = []; this.inGust = false; this.movers = []; this.lee = undefined; this.andy = undefined;
     this.garminShows = 0; this.garminDone = false; this.rivals = []; this.lapShown = 1;
     this.airborne = false; this.wheelieSteps = 0; this.pendingTrick = undefined; this.camOff = -220; this.camZoom = 1;
-    this.lowDetail = false; this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
+    this.lowDetail = false; this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 }; this.ghostFrames = []; this.ghostPlay = undefined; this.flung = false; this.trains = []; this.slowZones = []; this.slowOn = false; this.stampedes = []; this.confettiAt = []; this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
   }
 
   // ---------- terrain helpers ----------
@@ -193,6 +210,9 @@ export class LevelScene extends Phaser.Scene {
       // Lee and Andy move on the physics clock, so races stay fair on slow devices
       if (!this.finished) { this.updateLee(this.time.now, 16.67); this.updateAndy(this.time.now, 16.67); this.updateBunch(this.time.now); }
       this.physSteps++;
+      this.stepGhost();
+      this.stepSetPieces();
+      this.stepFling();
       this.stepTricks();
       this.stepHazards();
       if (this.inGust && !this.rider.crashed) {
@@ -226,10 +246,17 @@ export class LevelScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-P', () => this.togglePause());
     this.input.keyboard?.on('keydown-ESC', () => this.togglePause());
     this.input.keyboard?.on('keydown-R', () => { if (!this.finished && !this.paused) this.crashOrRespawn(true); });
-    this.events.once('shutdown', () => { hud.hide(); this.matter.world?.off('collisionstart'); this.matter.world?.off('collisionactive'); this.matter.world?.off('beforeupdate'); });
+    this.events.once('shutdown', () => { (this.matter.world?.engine?.timing as any) && ((this.matter.world.engine.timing as any).timeScale = 1); hud.hide(); this.matter.world?.off('collisionstart'); this.matter.world?.off('collisionactive'); this.matter.world?.off('beforeupdate'); });
 
     this.events.off('hop');
     this.events.on('hop', () => sfx.click());
+    stopCruise();
+    const ghost = loadGhost(this.def.id);
+    if (ghost && ghost.length > 6) {
+      const c = willOnBike(this, ghost[0], ghost[1], 1).setAlpha(0.35).setDepth(8);
+      c.add(this.add.text(30, -100, 'BEST', { fontFamily: 'Arial Black, Arial', fontSize: '14px', color: '#fff', stroke: '#111', strokeThickness: 4 }).setOrigin(0.5));
+      this.ghostPlay = { frames: ghost, c };
+    }
     this.startTime = this.time.now;
     this.garminNext = this.time.now + 7000;
     this.banner(`LEVEL ${this.def.id}: ${this.def.name.toUpperCase()}`, this.def.subtitle);
@@ -432,7 +459,7 @@ export class LevelScene extends Phaser.Scene {
         cg.fillStyle(0x111111, 1).fillCircle(cx + 40, gy - 12, 16).fillCircle(cx + 165, gy - 12, 16);
         const door = this.add.rectangle(o.x, gy - 50, 10, 40, 0x2c7be5).setStrokeStyle(3, 0x111111).setOrigin(0.5, 0).setDepth(8).setScale(0.15, 1);
         const lights = this.add.graphics().setDepth(4);
-        this.doors.push({ x: o.x, trigger: Phaser.Math.Between(480, 620), state: 'shut', door, lights });
+        this.doors.push({ x: o.x, trigger: o.practice ? 1000 : Phaser.Math.Between(480, 620), state: 'shut', door, lights, practice: o.practice });
       } else if (o.type === 'roller') {
         this.rollers.push({ x: o.x, kind: o.kind, next: 0, live: [] });
       } else if (o.type === 'dog') {
@@ -443,6 +470,14 @@ export class LevelScene extends Phaser.Scene {
         this.branches.push({ x: o.x, trigger: Phaser.Math.Between(560, 700), dropped: false });
       } else if (o.type === 'gulls') {
         this.gullZones.push({ x: o.x, len: o.len, next: 0 });
+      } else if (o.type === 'trainrace') {
+        this.trains.push({ x: o.x, endX: o.x + o.len, state: 'wait', tx: 0 });
+      } else if (o.type === 'slowmo') {
+        this.slowZones.push({ x: o.x, len: o.len });
+      } else if (o.type === 'stampede') {
+        this.stampedes.push({ x: o.x, fired: false, sheep: [], until: 0 });
+      } else if (o.type === 'confetti') {
+        this.confettiAt.push({ x: o.x, fired: false });
       } else if (o.type === 'gust') {
         this.gusts.push({ x: o.x, len: o.len });
       } else if (o.type === 'hazard') {
@@ -517,6 +552,10 @@ export class LevelScene extends Phaser.Scene {
     if (this.rider.crashed || this.finished) return;
     this.rider.crash();
     this.stats.crashes++;
+    stopCruise();
+    sfx.buzz([60, 40, 90]);
+    this.dropCombo();
+    this.flung = false; this.flingFrom = 0;
     const h = this.rider.head.position;
     this.blood.explode(reason === 'fall' ? 0 : 22, h.x, h.y);
     if (reason !== 'fall') this.splat(h.x, h.y);
@@ -527,6 +566,7 @@ export class LevelScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(40);
     this.tweens.add({ targets: big, y: big.y - 50, alpha: 0, duration: 1200, onComplete: () => big.destroy() });
     this.time.delayedCall(700, () => this.say(pick(CRASH_LINES)));
+    this.time.delayedCall(250, () => { if (this.rider.crashed && !this.flung) this.toast('TAP HOP TO FLING HIM'); });
     this.respawnAt = this.time.now + 2600;
   }
 
@@ -578,7 +618,7 @@ export class LevelScene extends Phaser.Scene {
     this.sparks.explode(14, p.sprite.x, p.sprite.y);
     this.tweens.add({ targets: p.sprite, scale: 1, alpha: 0, duration: 300, onComplete: () => p.sprite.destroy() });
     sfx.pickup();
-    if (p.type === 'yoghurt') { this.stats.yoghurts++; this.toast('+1 YOGHURT'); }
+    if (p.type === 'yoghurt') { this.stats.yoghurts++; this.toast('+1 YOGHURT'); this.addCombo(250); }
     if (p.type === 'gel') { this.rider.stamina = 1; this.toast('GEL: STAMINA FULL'); }
     if (p.type === 'coffee') { this.rider.boost(3000); this.toast('COFFEE BOOST!'); }
   }
@@ -760,6 +800,7 @@ export class LevelScene extends Phaser.Scene {
         const polite = h.wait > 700;
         if (polite) {
           if (h.who === 'horse') this.stats.courteous = true; else this.stats.politePasses++;
+          this.addCombo(200);
           this.toast('COURTEOUS RIDER +1');
         }
         this.matter.world.remove(h.body);
@@ -1033,8 +1074,19 @@ export class LevelScene extends Phaser.Scene {
       const t = this.pendingTrick; this.pendingTrick = undefined;
       this.stats.trickPoints += t.pts;
       this.trickToast(`${t.label}  +${t.pts}`);
+      this.addCombo(t.pts);
+      sfx.buzz(25);
     }
     const air = !R.wheelsDown();
+    const ahead = R.position.x + Math.max(0, R.speed) * 8;
+    R.landSlope = Math.atan2(this.groundY(ahead + 40) - this.groundY(ahead - 40), 80);
+    R.airSpin = this.airborne ? this.airRot : 0;
+    // first touch after a real jump: rescue a sketchy landing
+    if (this.airborne && !air && this.groundSteps === 0 && step - this.airStart > 25) {
+      const off = Math.abs(Phaser.Math.Angle.Wrap(R.frame.angle - R.landSlope));
+      if (off > 0.3 && off < 0.85) { R.rescueSteps = 14; this.trickToast('SAVED IT!'); sfx.buzz(30); }
+    }
+    this.stepCombo(R);
     if (this.airborne) {
       // keep counting rotation through brief touches (e.g. clipping a ramp lip)
       this.airRot += Phaser.Math.Angle.Wrap(R.frame.angle - this.lastAngle);
@@ -1105,6 +1157,7 @@ export class LevelScene extends Phaser.Scene {
       if (d.state === 'open' && this.physSteps > d.shutAt!) {
         if (d.body) this.matter.world.remove(d.body);
         d.body = undefined; d.state = 'done';
+        if (!r.crashed && rx > d.x + 40) this.addCombo(300, 'DOOR DODGED');
         this.tweens.add({ targets: d.door, scaleX: 0.15, x: d.x, duration: 220 });
       }
       if (d.state === 'shut' && gap < d.trigger && gap > 0 && !r.crashed) {
@@ -1114,7 +1167,8 @@ export class LevelScene extends Phaser.Scene {
         // low enough to hop over
         d.body = this.matter.add.rectangle(d.x + 18, gy(d.x) - 22, 26, 30, { isStatic: true, label: 'door', chamfer: { radius: 6 } }) as Body;
         d.shutAt = this.physSteps + 60;
-        this.time.delayedCall(150, () => this.say('DOOR! Hop it!'));
+        if (d.practice) this.toast('CAR DOORS OPEN! HOP THEM OR BRAKE');
+        else this.time.delayedCall(150, () => this.say('DOOR! Hop it!'));
       }
     }
     // rolling bales/boulders: keep coming while you're near
@@ -1128,6 +1182,7 @@ export class LevelScene extends Phaser.Scene {
         ro.live.push({ body, sprite, born: now });
       }
       ro.live = ro.live.filter((l) => {
+        if (!(l as any).dodged && !r.crashed && l.body.position.x < rx - 40) { (l as any).dodged = true; this.addCombo(150, ro.kind === 'bale' ? 'BALE DODGED' : 'BOULDER DODGED'); }
         l.sprite.setPosition(l.body.position.x, l.body.position.y).setRotation(l.body.angle);
         // once it's stopped rolling it crumbles away, so nothing can pin you in place
         const stuck = now - l.born > 1500 && Math.hypot(l.body.velocity.x, l.body.velocity.y) < 0.8;
@@ -1160,13 +1215,14 @@ export class LevelScene extends Phaser.Scene {
         for (const part of r.parts) this.matter.body.setVelocity(part.body, { x: part.body.velocity.x * 0.88, y: part.body.velocity.y });
         sfx.meow();
         this.bigText(rx - 40, gy(rx) - 130, 'NIPPED!', '#ff6b6b');
+        sfx.buzz(50);
         d.dx -= 260;
         d.until = 0; // one nip and it's happy
       }
       if (this.physSteps > d.until || r.crashed) {
         d.state = 'done';
         this.tweens.add({ targets: d.sprite, alpha: 0, duration: 800 });
-        if (!r.crashed && !d.bitten) this.time.delayedCall(200, () => this.say('Ha! Outsprinted a collie.'));
+        if (!r.crashed && !d.bitten) { this.time.delayedCall(200, () => this.say('Ha! Outsprinted a collie.')); this.addCombo(300, 'DOG ESCAPED'); }
       }
     }
     // branches drop as you approach
@@ -1204,14 +1260,176 @@ export class LevelScene extends Phaser.Scene {
           this.tweens.add({ targets: s, y: s.y - 400, x: s.x - 200, duration: 1200, onComplete: () => s.destroy() });
         }
       }
+      if (!g.done && !(g as any).dodged && s.x < rx - 60 && !r.crashed) { (g as any).dodged = true; this.addCombo(150, 'GULL DODGED'); }
       if (s.x < rx - 900) { s.destroy(); return false; }
       return !g.done || s.active;
     });
   }
 
+  // ---------- set pieces ----------
+  stepSetPieces() {
+    const r = this.rider;
+    if (!r || this.finished) return;
+    const rx = r.position.x, gy = (x: number) => this.groundY(x);
+    // race the train along the sea wall
+    for (const t of this.trains) {
+      if (t.state === 'wait' && rx > t.x && !r.crashed) {
+        t.state = 'race'; t.tx = rx - 380;
+        t.img = this.add.image(t.tx, gy(t.tx) - 110, 'train').setScale(1.5 / RES).setDepth(1.4);
+        this.toast('RACE THE TRAIN TO STARCROSS! 🚆');
+        sfx.horn();
+        this.time.delayedCall(700, () => this.say("Race a train? Don't mind if I do."));
+      }
+      if (t.state === 'race') {
+        t.tx += 10.0;
+        const front = t.tx + 170;
+        t.img!.setPosition(t.tx, gy(t.tx) - 110);
+        if (r.crashed || front > t.endX) {
+          t.state = 'done';
+          this.toast('THE TRAIN WINS 🚆'); this.time.delayedCall(400, () => this.say('It had a head start.'));
+        } else if (rx > t.endX) {
+          t.state = 'done';
+          this.addCombo(500, 'BEAT THE TRAIN! 🚆');
+          this.time.delayedCall(400, () => this.say('Faster than GWR. Not hard.'));
+        }
+      } else if (t.state === 'done' && t.img) {
+        t.tx += 10; t.img.setPosition(t.tx, gy(t.tx) - 110);
+        if (t.tx > rx + 2000) { t.img.destroy(); t.img = undefined; }
+      }
+    }
+    // slow motion over the big gap
+    const slow = !r.crashed && this.airborne && this.slowZones.some((z) => rx > z.x && rx < z.x + z.len);
+    if (slow !== this.slowOn) {
+      this.slowOn = slow;
+      (this.matter.world.engine.timing as any).timeScale = slow ? 0.45 : 1;
+      if (slow) this.trickToast('SLOW-MO');
+    }
+    // sheep stampede
+    for (const st of this.stampedes) {
+      if (!st.fired && rx > st.x - 1000 && !r.crashed) {
+        st.fired = true; st.until = this.physSteps + 260;
+        this.toast('STAMPEDE! 🐑🐑🐑 HOP THEM!');
+        sfx.neigh();
+        for (let i = 0; i < 6; i++) {
+          const x = st.x + i * 55 + (i % 2) * 20;
+          const body = this.matter.add.rectangle(x, gy(x) - 16, 44, 30, { label: 'cat', density: 0.0007, friction: 0.3 }) as Body;
+          const sprite = this.add.image(x, gy(x) - 16, 'sheep').setScale(1 / RES).setDepth(12).setFlipX(true);
+          this.cats.push({ body, sprite, hit: false, kind: 'sheep' });
+          st.sheep.push({ body, sprite, dodged: false });
+        }
+      }
+      if (st.fired && this.physSteps < st.until) {
+        for (const sh of st.sheep) {
+          const c = this.cats.find((q) => q.body === sh.body);
+          if (c && !c.hit) this.matter.body.setVelocity(sh.body, { x: -4.5, y: sh.body.velocity.y });
+          if (!sh.dodged && !r.crashed && c && !c.hit && sh.body.position.x < rx - 50) { sh.dodged = true; this.addCombo(100, 'SHEEP DODGED'); }
+        }
+      }
+    }
+    // the crowd goes wild on the final straight
+    for (const c of this.confettiAt) {
+      if (!c.fired && rx > c.x) {
+        c.fired = true;
+        sfx.roar();
+        this.toast('THE CROWD GOES WILD! 🎉');
+        const W = this.scale.width;
+        const em = this.add.particles(0, 0, 'confetti', {
+          x: { min: 0, max: W }, y: -10, speedY: { min: 180, max: 380 }, speedX: { min: -80, max: 80 },
+          rotate: { min: 0, max: 360 }, lifespan: 2600, frequency: 12, quantity: 2,
+          tint: [0xd62828, 0xffd400, 0x2c7be5, 0x7CFC8A, 0xff8fb3, 0xffffff],
+        }).setScrollFactor(0).setDepth(36);
+        this.time.delayedCall(3500, () => { em.stop(); this.time.delayedCall(2700, () => em.destroy()); });
+      }
+    }
+  }
+
+  // ---------- combos ----------
+  addCombo(pts: number, label?: string) {
+    if (this.finished || this.rider.crashed) return;
+    const c = this.combo;
+    c.count++; c.pts += pts; c.lastStep = this.physSteps; c.slow = 0;
+    if (label) this.trickToast(label);
+    const el = document.getElementById('hud-combo');
+    if (el) { el.textContent = `COMBO ×${c.count}`; el.classList.toggle('hidden', c.count < 2); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+  }
+
+  /** Keep the combo alive by keeping moving and keeping things happening. */
+  stepCombo(R: Rider) {
+    const c = this.combo;
+    if (!c.count) return;
+    c.slow = R.speed < 2.5 ? c.slow + 1 : 0;
+    if (c.slow > 90 || this.physSteps - c.lastStep > 720) this.bankCombo();
+  }
+
+  bankCombo() {
+    const c = this.combo;
+    if (c.count >= 2) {
+      const total = Math.round(c.pts * (0.5 + c.count * 0.5)) - c.pts;
+      this.stats.comboPoints += total;
+      this.stats.bestCombo = Math.max(this.stats.bestCombo, c.count);
+      if (!this.finished) this.trickToast(`COMBO ×${c.count} BANKED  +${total}`);
+    }
+    this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 };
+    document.getElementById('hud-combo')?.classList.add('hidden');
+  }
+
+  dropCombo() {
+    if (this.combo.count >= 2) this.trickToast(`COMBO ×${this.combo.count} LOST`);
+    this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 };
+    document.getElementById('hud-combo')?.classList.add('hidden');
+  }
+
+  // ---------- ghost of your best run ----------
+  stepGhost() {
+    const R = this.rider;
+    if (!R) return;
+    if (this.physSteps % 3 === 0) {
+      if (!this.finished && this.ghostFrames.length < 30000) this.ghostFrames.push(Math.round(R.position.x), Math.round(R.position.y), Math.round(R.frame.angle * 100));
+      const g = this.ghostPlay;
+      if (g) {
+        const i = (this.physSteps / 3) * 3;
+        if (i + 2 < g.frames.length) g.c.setPosition(g.frames[i], g.frames[i + 1]).setRotation(g.frames[i + 2] / 100);
+        else g.c.setAlpha(Math.max(0, g.c.alpha - 0.02));
+      }
+    }
+  }
+
+  // ---------- fling: after a crash, press HOP to send Will flying ----------
+  stepFling() {
+    const R = this.rider;
+    if (!R || !R.crashed || this.finished) return;
+    if (!this.flingFrom) this.flingFrom = R.head.position.x;
+    if (!this.flung && input.hopAt && performance.now() - input.hopAt < 200) {
+      input.hopAt = 0;
+      this.flung = true;
+      for (const { body } of R.parts) {
+        if (body.label === 'wheel' || body.label === 'frame') continue;
+        this.matter.body.setVelocity(body, { x: body.velocity.x + 13, y: body.velocity.y - 15 });
+        this.matter.body.setAngularVelocity(body, 0.4);
+      }
+      this.bigText(R.head.position.x, R.head.position.y - 60, 'YEET!', '#ff9f1c');
+      sfx.buzz(40);
+      this.respawnAt += 1600;
+      this.time.delayedCall(2200, () => {
+        if (!this.rider.crashed) return;
+        const m = Math.max(0, Math.round((this.rider.head.position.x - this.flingFrom) / 10));
+        this.trickToast(`FLUNG ${m} m`);
+      });
+    }
+  }
+
   finish(lost = false) {
+    if (this.andy && Math.abs(this.andy.x - this.rider.position.x) < 140) {
+      (this.matter.world.engine.timing as any).timeScale = 0.25;
+      this.time.delayedCall(1200, () => { (this.matter.world.engine.timing as any).timeScale = 1; });
+      this.trickToast('PHOTO FINISH! 📸');
+    }
     this.finished = true;
     this.stats.timeMs = this.elapsed;
+    stopCruise();
+    this.bankCombo();
+    const prevBest = bestTime(this.def.id);
+    if (!lost && (!prevBest || this.elapsed < prevBest)) saveGhost(this.def.id, this.ghostFrames);
     hud.hideGarmin();
     if (lost) sfx.bad(); else sfx.win();
     const cam = this.cameras.main;

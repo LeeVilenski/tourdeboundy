@@ -42,5 +42,7 @@ export const sfx = {
   neigh() { for (let i = 0; i < 6; i++) tone(900 - i * 60, 0.08, 'sawtooth', 0.06, 200, i * 0.07); },
   horn() { tone(420, 0.15, 'square', 0.07); tone(420, 0.2, 'square', 0.07, 0, 0.22); },
   win() { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.2, 'square', 0.07, 0, i * 0.13)); },
+  buzz(ms: number | number[]) { if (!muted) try { navigator.vibrate?.(ms); } catch { /* ignore */ } },
+  roar() { noise(1.6, 0.25); [392, 523, 659].forEach((f, i) => tone(f, 0.5, 'triangle', 0.05, 0, 0.3 + i * 0.12)); },
   click() { tone(600, 0.05, 'square', 0.05); },
 };
