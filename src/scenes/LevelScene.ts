@@ -1602,7 +1602,8 @@ export class LevelScene extends Phaser.Scene {
   bankCombo() {
     const c = this.combo;
     if (c.count >= 2) {
-      const total = Math.round(c.pts * (0.5 + c.count * 0.5)) - c.pts;
+      // bonus grows 15% per link, capped at +100% of the points earned during the chain
+      const total = Math.round(c.pts * Math.min(0.15 * (c.count - 1), 1));
       this.stats.comboPoints += total;
       this.stats.bestCombo = Math.max(this.stats.bestCombo, c.count);
       if (!this.finished) this.trickToast(`COMBO ×${c.count} BANKED  +${total}`);
