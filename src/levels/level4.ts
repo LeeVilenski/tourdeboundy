@@ -12,7 +12,7 @@ t.slope(800, 220);
 const bog = t.x; t.flat(260); t.gap(190, 120); t.flat(400);
 const ponies = t.x; t.flat(900);
 const grid2 = t.x; t.grid(); t.flat(200);
-const lee = t.x; t.flat(1500);
+const lee = t.x; t.flat(900); t.pothole(46, 20); t.flat(554);
 const gust2 = t.x; t.slope(900, -180);
 const sheep2 = t.x; t.flat(500);
 t.slope(1000, 250);

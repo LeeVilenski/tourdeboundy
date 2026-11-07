@@ -95,6 +95,7 @@ export class LevelScene extends Phaser.Scene {
   bakeH = { back: 600, front: 200 };
   baked: { x0: number; x1: number; top: number; bot: number; depth: number; gs: Phaser.GameObjects.Graphics[]; rt?: Phaser.GameObjects.RenderTexture; earth?: Phaser.GameObjects.Rectangle }[] = [];
   lowDetail = false;
+  puncturedNotice = -1;
   luckyUsed = false;
   combo = { count: 0, pts: 0, lastStep: 0, slow: 0 };
   ghostFrames: number[] = [];
@@ -107,6 +108,7 @@ export class LevelScene extends Phaser.Scene {
   stampedes: { x: number; fired: boolean; sheep: { body: Body; sprite: Phaser.GameObjects.Image; dodged: boolean }[]; until: number }[] = [];
   confettiAt: { x: number; fired: boolean }[] = [];
   grids: { x: number; done: boolean; rattle: number; violent?: boolean }[] = [];
+  holes: { x: number; w: number; done: boolean }[] = [];
   planks: { body: Body; x0: number; x1: number; top: number; on: boolean }[] = [];
   movers: { img: Phaser.GameObjects.Image; x0: number; x1: number; v: number }[] = [];
   lee?: { npc: NpcRider; state: 'off' | 'riding' | 'down' | 'gone'; x: number; hit: Set<number>; downUntil: number; bubble?: Phaser.GameObjects.Text; bubbleUntil: number };
@@ -164,7 +166,7 @@ export class LevelScene extends Phaser.Scene {
     this.gusts = []; this.inGust = false; this.movers = []; this.lee = undefined; this.andy = undefined;
     this.garminShows = 0; this.garminDone = false; this.rivals = []; this.lapShown = 1;
     this.airborne = false; this.wheelieSteps = 0; this.pendingTrick = undefined; this.camOff = -220; this.camZoom = 1;
-    this.sleepers = []; this.bodyWindowAt = -1e9; this.luckyUsed = false; this.baked = []; this.rtPool = []; this.earthPool = []; this.culled = []; this.cullX = undefined; this.lowDetail = false; this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 }; this.ghostFrames = []; this.ghostPlay = undefined; this.flung = false; this.trains = []; this.slowZones = []; this.slowOn = false; this.stampedes = []; this.confettiAt = []; this.grids = this.def.decor.filter((d) => d.type === 'grid').map((d) => ({ x: d.x, done: false, rattle: 0 })); this.planks = []; this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
+    this.sleepers = []; this.bodyWindowAt = -1e9; this.luckyUsed = false; this.puncturedNotice = -1; this.baked = []; this.rtPool = []; this.earthPool = []; this.culled = []; this.cullX = undefined; this.lowDetail = false; this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 }; this.ghostFrames = []; this.ghostPlay = undefined; this.flung = false; this.trains = []; this.slowZones = []; this.slowOn = false; this.stampedes = []; this.confettiAt = []; this.grids = this.def.decor.filter((d) => d.type === 'grid').map((d) => ({ x: d.x, done: false, rattle: 0 })); this.planks = []; this.holes = (this.def.potholes ?? []).map((h) => ({ ...h, done: false })); this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
   }
 
   // ---------- terrain helpers ----------
@@ -329,6 +331,17 @@ export class LevelScene extends Phaser.Scene {
       g.lineStyle(2, 0x58585e, 1).strokePoints(pts.map((p) => ({ x: p.x, y: p.y + 22 })));
       g.lineStyle(5, verge, 1).strokePoints(pts.map((p) => ({ x: p.x, y: p.y + 25 })));
     }));
+    // potholes: dark broken patch with cracks
+    for (const h of this.def.potholes ?? []) {
+      this.cullX = h.x;
+      const g = this.add.graphics().setDepth(5.6);
+      const y = this.groundY(h.x - 4);
+      g.fillStyle(0x1a1a1d, 1).fillEllipse(h.x + h.w / 2, y + 9, h.w + 18, 14);
+      g.fillStyle(0x4a4a50, 1).fillEllipse(h.x - 8, y + 2, 10, 4).fillEllipse(h.x + h.w + 8, y + 3, 9, 4);
+      g.lineStyle(1.5, 0x111111, 1);
+      g.lineBetween(h.x - 14, y + 3, h.x - 30, y + 8).lineBetween(h.x + h.w + 12, y + 4, h.x + h.w + 28, y + 2).lineBetween(h.x + h.w / 2, y + 16, h.x + h.w / 2 + 6, y + 22);
+    }
+    this.cullX = undefined;
     // gravel patches (one Graphics each, so off-screen ones can be skipped)
     for (const o of this.def.obstacles) {
       if (o.type !== 'gravel') continue;
@@ -1503,6 +1516,7 @@ export class LevelScene extends Phaser.Scene {
     if (!r || this.finished) return;
     const rx = r.position.x, gy = (x: number) => this.groundY(x);
     this.stepGrids();
+    this.stepPotholes();
     // race the train along the sea wall
     for (const t of this.trains) {
       if (t.state === 'wait' && rx > t.x && !r.crashed) {
@@ -1571,6 +1585,38 @@ export class LevelScene extends Phaser.Scene {
           tint: [0xd62828, 0xffd400, 0x2c7be5, 0x7CFC8A, 0xff8fb3, 0xffffff],
         }).setScrollFactor(0).setDepth(36);
         this.time.delayedCall(3500, () => { em.stop(); this.time.delayedCall(2700, () => em.destroy()); });
+      }
+    }
+  }
+
+  /** Potholes: hop them, clunk through slowly, or BANG at speed (and maybe puncture). */
+  stepPotholes() {
+    const r = this.rider;
+    if (r.crashed) return;
+    if (r.stepCount === this.puncturedNotice) { this.say('Tube changed. Legs are fine.'); this.toast('TYRE FIXED'); }
+    for (const h of this.holes) {
+      if (r.position.x < h.x - 300) h.done = false;
+      const f = r.front.position.x;
+      if (h.done || f < h.x + 4 || f > h.x + h.w) continue;
+      h.done = true;
+      if (!r.wheelsDown()) { this.addCombo(80, 'POTHOLE HOPPED'); continue; }
+      if (r.speed < 5) { sfx.click(); continue; } // a gentle clunk
+      // BANG: front wheel slams up, the bike pitches
+      const hard = Math.min(1, (r.speed - 5) / 5);
+      sfx.bang(); sfx.buzz(70);
+      this.cameras.main.shake(220, 0.01);
+      const B = this.matter.body;
+      B.setVelocity(r.front, { x: r.front.velocity.x * 0.8, y: -4 - 4 * hard });
+      B.setVelocity(r.frame, { x: r.frame.velocity.x * 0.88, y: r.frame.velocity.y - 2 });
+      B.setAngularVelocity(r.frame, -0.06 - 0.06 * hard);
+      this.bigText(f, this.groundY(f) - 90, 'BANG!', '#ff6b6b');
+      if (r.stepCount >= r.puncturedUntil && Math.random() < 0.35 + 0.35 * hard) {
+        r.puncturedUntil = r.stepCount + 600;
+        this.puncturedNotice = r.puncturedUntil;
+        this.time.delayedCall(250, () => { sfx.hiss(); this.toast('PUNCTURE! 🛞 TOP SPEED DOWN'); });
+        this.time.delayedCall(700, () => this.say(pick(['PSSSHHHH. Brilliant.', 'Pinch flat. Classic.', 'Council will hear about this.', 'Tubeless next time.'])));
+      } else {
+        this.time.delayedCall(300, () => this.say(pick(['Ooft. Fillings check.', 'Who fills these in?!', 'That one had a postcode.'])));
       }
     }
   }

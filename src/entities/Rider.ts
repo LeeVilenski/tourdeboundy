@@ -172,6 +172,7 @@ export class Rider {
   rearDown = false;
   frontDown = false;
   leanAmt = 0;
+  puncturedUntil = 0; // stepCount until the flat tyre is fixed
   landSlope = 0;   // slope of the ground under/ahead of the bike (set by the level)
   airSpin = 0;     // rotation so far this jump (set by the level)
   rescueSteps = 0;
@@ -197,7 +198,8 @@ export class Rider {
       const sprinting = input.sprint && this.stamina > 0.02;
       if (sprinting) this.stamina = Math.max(0, this.stamina - (this.kit.perk === 'cannibal' ? 0.0042 : 0.006));
       else this.stamina = Math.min(1, this.stamina + (this.kit.perk === 'windproof' ? 0.0024 : 0.0015));
-      const maxAV = sprinting ? 0.66 : boosted ? 0.6 : 0.52;
+      const flat = this.stepCount < this.puncturedUntil;
+      const maxAV = (sprinting ? 0.66 : boosted ? 0.6 : 0.52) * (flat ? 0.62 : 1);
       const grounded = this.wheelsDown();
       if (input.pedal || input.cruise || sprinting) {
         // ease up to speed: strong push from slow, tapering near the top
@@ -284,6 +286,9 @@ export class Rider {
     for (const { body, sprite } of this.parts) {
       sprite.setPosition(body.position.x, body.position.y).setRotation(body.angle);
     }
+    // flat back tyre: squashed and wobbly
+    const rearSprite = this.parts.find((p) => p.body === this.rear)?.sprite;
+    if (rearSprite) rearSprite.setScale(1 / RES, (this.stepCount < this.puncturedUntil ? 0.82 : 1) / RES).setTint(this.stepCount < this.puncturedUntil ? 0xbbbbbb : 0xffffff);
     const riding = !this.crashed;
     this.thighPart.sprite.setVisible(!riding);
     this.shinPart.sprite.setVisible(!riding);

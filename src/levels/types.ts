@@ -64,6 +64,7 @@ export interface LevelDef {
   miles?: number;       // show distance as miles (Dartmoor)
   lee?: { joinX: number; leaveX: number; bollards: number[] };
   boss?: { sprintX: number };
+  potholes?: { x: number; w: number }[]; // filled in by the builder
   laps?: number[];                 // x of each lap line (shows LAP n/N)
   bunch?: { pileX: number };       // other riders; two crash at pileX
   garminGivesUp?: boolean;
@@ -119,7 +120,10 @@ export class TerrainBuilder {
     this.advance(len, len);
     return this;
   }
+  potholes: { x: number; w: number }[] = [];
   pothole(w = 34, d = 12) {
+    this.potholes.push({ x: this.x, w });
+    d = Math.max(d, 18);
     this.pts.push({ x: this.ax + 2, y: this.y + d }, { x: this.ax + w - 2, y: this.y + d }, { x: this.ax + w, y: this.y });
     this.advance(w, w);
     return this;
@@ -164,6 +168,7 @@ export class TerrainBuilder {
     if (def.boss) def.boss = { sprintX: m(def.boss.sprintX) };
     if (def.laps) def.laps = def.laps.map(m);
     if (def.bunch) def.bunch = { pileX: m(def.bunch.pileX) };
+    def.potholes = this.potholes.map((p) => ({ x: m(p.x), w: p.w }));
     def.finishX = m(def.finishX);
     def.terrain = this.pts;
     return def;

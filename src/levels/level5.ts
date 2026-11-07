@@ -14,7 +14,7 @@ const LAPS = 4;
 for (let lap = 1; lap <= LAPS; lap++) {
   const L0 = t.x; laps.push(L0);
   decor.push({ type: 'board', x: L0 + 60, text: lap === LAPS ? 'BELL LAP' : `LAP ${lap} / ${LAPS}` });
-  t.flat(500);
+  t.flat(250); t.pothole(46, 20); t.flat(204);
   t.rollers(500, 25, 2);
   t.slope(400, -80); t.flat(220); t.slope(400, 80);   // banking 1
   const mid = t.x; t.flat(650);

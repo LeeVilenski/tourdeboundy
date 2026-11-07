@@ -15,7 +15,7 @@ const carpark = t.x; t.flat(1500);                                 // car park: 
 t.slope(700, 220);
 const k2 = t.x; t.flat(220); t.gap(180, 160); t.flat(420);           // big pit
 const gravel2 = t.x; t.slope(800, 260);
-const hiker = t.x; t.flat(1000);
+const hiker = t.x; t.flat(700); t.pothole(46, 20); t.flat(120); t.pothole(40, 18); t.flat(94);
 const tele = t.x; t.rollers(800, 45, 3); t.flat(500); t.slope(600, -170); t.flat(400); t.slope(500, 230); t.flat(600); // Telegraph Hill: up and over
 t.slope(500, 120);
 const d2 = t.x; t.slope(900, 240); t.flat(200); t.gap(190, 150); t.flat(500); t.slope(700, 200); t.flat(300); // the second big descent
