@@ -105,6 +105,19 @@ export class MenuScene extends Phaser.Scene {
     apShow();
     void CHALLENGES;
 
+    // reset high scores (tap twice to confirm); keeps medals, kits and unlocked levels
+    const reset = this.add.text(W - 70, 26, 'RESET SCORES', { fontFamily: 'Arial Black, Arial', fontSize: '14px', color: '#fff', backgroundColor: '#e63946', padding: { x: 8, y: 5 } })
+      .setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    let armed = false;
+    reset.on('pointerdown', () => {
+      sfx.click();
+      if (!armed) { armed = true; reset.setText('TAP AGAIN TO RESET'); this.time.delayedCall(3000, () => { armed = false; reset.setText('RESET SCORES'); }); return; }
+      try {
+        for (const k of Object.keys(localStorage)) if (/^tdb-(score|best|ghost2?)-/.test(k)) localStorage.removeItem(k);
+      } catch { /* ignore */ }
+      this.scene.restart();
+    });
+
     const mute = this.add.text(W - 20, 20, sfx.muted ? '🔇' : '🔊', { fontSize: '34px' }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
     mute.on('pointerdown', () => mute.setText(sfx.toggle() ? '🔇' : '🔊'));
 

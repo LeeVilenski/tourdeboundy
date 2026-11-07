@@ -104,7 +104,7 @@ export class LevelScene extends Phaser.Scene {
   slowOn = false;
   stampedes: { x: number; fired: boolean; sheep: { body: Body; sprite: Phaser.GameObjects.Image; dodged: boolean }[]; until: number }[] = [];
   confettiAt: { x: number; fired: boolean }[] = [];
-  grids: { x: number; done: boolean; rattle: number }[] = [];
+  grids: { x: number; done: boolean; rattle: number; violent?: boolean }[] = [];
   planks: { body: Body; x0: number; x1: number; top: number; on: boolean }[] = [];
   movers: { img: Phaser.GameObjects.Image; x0: number; x1: number; v: number }[] = [];
   lee?: { npc: NpcRider; state: 'off' | 'riding' | 'down' | 'gone'; x: number; hit: Set<number>; downUntil: number; bubble?: Phaser.GameObjects.Text; bubbleUntil: number };
@@ -1544,8 +1544,18 @@ export class LevelScene extends Phaser.Scene {
       if (r.position.x < g.x - 250) { g.done = false; g.rattle = 0; } // reset after a respawn behind it
       if (g.rattle > 0 && !r.crashed) {
         g.rattle--;
-        // jolt the bike up and down like it's on a washboard
-        if (g.rattle % 4 === 0) {
+        if (g.violent) {
+          // regular pedalling speed: properly chucked about (big bounces, the bike pitches, head flops)
+          if (g.rattle % 6 === 0) {
+            const up = g.rattle % 12 === 0;
+            const B = this.matter.body;
+            B.setVelocity(r.front, { x: r.front.velocity.x * 0.97, y: up ? -5.5 : 2.5 });
+            B.setVelocity(r.rear, { x: r.rear.velocity.x * 0.97, y: up ? 2.5 : -5.5 });
+            B.setVelocity(r.frame, { x: r.frame.velocity.x * 0.97, y: r.frame.velocity.y - 1.5 });
+            for (const part of r.parts) if (part.body.label === 'head' || part.body.label === 'limb') B.setAngularVelocity(part.body, (up ? 1 : -1) * 0.3);
+          }
+        } else if (g.rattle % 4 === 0) {
+          // at sprint speed: a fast shudder
           const kick = (g.rattle % 8 === 0 ? -1 : 1) * 1.6;
           this.matter.body.setVelocity(r.frame, { x: r.frame.velocity.x * 0.985, y: r.frame.velocity.y + kick });
           this.matter.body.setAngularVelocity(r.head, r.head.angularVelocity + (g.rattle % 8 === 0 ? 0.12 : -0.12));
@@ -1555,7 +1565,7 @@ export class LevelScene extends Phaser.Scene {
       g.done = true;
       if (!r.wheelsDown()) {
         this.addCombo(150, 'GRID SKIPPED');
-      } else if (r.speed < 3.6) {
+      } else if (r.speed < 3) {
         // too slow: the front wheel drops between the bars and over the top he goes
         this.bigText(g.x + 60, this.groundY(g.x) - 120, 'WHEEL STUCK!', '#ff9f1c');
         sfx.crash();
@@ -1568,8 +1578,18 @@ export class LevelScene extends Phaser.Scene {
           this.matter.body.setAngularVelocity(part.body, 0.35);
         }
         this.time.delayedCall(900, () => this.say('Who designs these things?!'));
+      } else if (r.speed < 9.2) {
+        // regular speed: chucked about
+        g.rattle = 48; g.violent = true;
+        this.cameras.main.shake(700, 0.016);
+        sfx.rattle(); this.time.delayedCall(250, () => sfx.rattle());
+        sfx.buzz([60, 30, 60, 30, 60, 30, 60, 30, 60]);
+        const h = r.head.position;
+        this.bigText(h.x, h.y - 80, 'CLATTER-CLATTER-CLANG!', '#ff9f1c');
+        this.time.delayedCall(500, () => this.say(Phaser.Utils.Array.GetRandom(['WH-WH-WHOA!', 'M-M-MY S-S-SPINE!', 'Should\'ve s-s-sprinted!', 'B-b-bunny hop n-n-next time!']), 1800));
+        this.addCombo(50, 'SURVIVED THE GRID');
       } else {
-        g.rattle = 40;
+        g.rattle = 40; g.violent = false;
         this.cameras.main.shake(380, 0.006);
         sfx.rattle();
         sfx.buzz([30, 20, 30, 20, 30, 20, 30]);
