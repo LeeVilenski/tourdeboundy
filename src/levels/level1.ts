@@ -1,7 +1,7 @@
 import { LevelDef, TerrainBuilder } from './types';
 
 // Level 1 — Devon Lanes (tutorial). Roughly 1 km of hedge-lined back lanes.
-const t = new TerrainBuilder(-400, 500);
+const t = new TerrainBuilder(-400, 500, 1.7); // hills x1.7
 t.flat(1000);                 // start + learn to pedal
 t.slope(500, 60);             // gentle descent
 t.flat(300);                  // cat sits around 1250 (before this)
@@ -22,7 +22,7 @@ t.flat(900);                  // finish straight
 
 const terrain = t.pts;
 
-export const LEVEL1: LevelDef = {
+export const LEVEL1: LevelDef = t.finalize({
   id: 1,
   name: 'Devon Lanes',
   subtitle: 'Hedges, horses and absolutely no rest',
@@ -83,4 +83,4 @@ export const LEVEL1: LevelDef = {
     { type: 'tractor', x: 1900 },
     { type: 'cows', x: 8800 },
   ],
-};
+});

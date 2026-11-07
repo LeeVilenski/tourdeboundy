@@ -1,7 +1,7 @@
 import { LevelDef, ObstacleDef, DecorDef, TerrainBuilder } from './types';
 
 // Level 5 — Torbay Velodrome Showdown: a 3-lap race with a bunch, a pile-up, and Andy sitting on your wheel.
-const t = new TerrainBuilder(-400, 500);
+const t = new TerrainBuilder(-400, 500, 1.8); // hills x1.8
 t.flat(700);                                          // start grid
 const laps: number[] = [];
 const obstacles: ObstacleDef[] = [];
@@ -21,7 +21,7 @@ for (let lap = 1; lap <= LAPS; lap++) {
   const bank2 = t.x + 500; t.slope(500, -110); t.flat(300); t.slope(500, 110); // banking 2
   const back = t.x; t.flat(600);
   t.rollers(500, 30, 2);
-  const hill = t.x; t.flat(400); t.slope(450, -90); t.flat(250); t.slope(450, 90); t.flat(300); // up and over Babbacombe
+  const hill = t.x; t.flat(400); t.slope(450, -170); t.flat(250); t.slope(450, 170); t.flat(300); // up and over Babbacombe
 
   decor.push({ type: 'palm', x: L0 + 300 }, { type: 'palm', x: back + 300 });
   pickups.push({ type: 'yoghurt', x: L0 + 700, dy: -50 }, { type: 'coffee', x: back + 200 });
@@ -52,7 +52,7 @@ const finishX = straight + 1250;
 decor.push({ type: 'board', x: straight + 200, text: '1 KM TO GO' }, { type: 'palm', x: straight + 800 });
 checkpoints.push(straight - 300);
 
-export const LEVEL5: LevelDef = {
+export const LEVEL5: LevelDef = t.finalize({
   id: 5,
   name: 'Torbay Velodrome',
   subtitle: '4 laps. Beat Andy. He will sit on your wheel.',
@@ -70,4 +70,4 @@ export const LEVEL5: LevelDef = {
   obstacles,
   decor,
   pickups,
-};
+});

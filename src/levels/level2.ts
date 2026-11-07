@@ -1,7 +1,7 @@
 import { LevelDef, ObstacleDef, DecorDef, TerrainBuilder } from './types';
 
 // Level 2 — The MMM: estuary flats past Powderham and Starcross, the Mamhead climb, then down through Kenn.
-const t = new TerrainBuilder(-400, 500);
+const t = new TerrainBuilder(-400, 500, 2.2); // hills x2.2
 t.flat(900);                                   // Exminster start
 const sea = t.x; t.flat(2200);                 // sea wall road (train alongside)
 t.pothole(); t.flat(160); t.pothole(40, 14); t.flat(300);
@@ -70,7 +70,7 @@ const decor: DecorDef[] = [
   { type: 'cows', x: back + 500 },
 ];
 
-export const LEVEL2: LevelDef = {
+export const LEVEL2: LevelDef = t.finalize({
   id: 2,
   name: 'The MMM',
   subtitle: 'Mamhead. Mamhead. More Mamhead.',
@@ -108,4 +108,4 @@ export const LEVEL2: LevelDef = {
     { type: 'yoghurt', x: hill + 150, dy: -60 },
     { type: 'yoghurt', x: home + 900, dy: -60 },
   ],
-};
+});

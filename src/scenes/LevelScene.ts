@@ -283,10 +283,11 @@ export class LevelScene extends Phaser.Scene {
     const t = this.def.terrain;
     const verge = this.def.theme === 'town' ? 0xbdbdbd : this.def.theme === 'moor' ? 0x7d7a3e : 0x4f9236;
     const earth = groundColor(this.def.theme);
+    const bottom = Math.max(...t.map((p) => p.y)) + 2000;
     this.chunks.push(...sliced(this, t, 5, (g, pts) => {
-      g.fillStyle(earth, 1).beginPath().moveTo(pts[0].x, 3000);
+      g.fillStyle(earth, 1).beginPath().moveTo(pts[0].x, bottom);
       for (const p of pts) g.lineTo(p.x, p.y);
-      g.lineTo(pts[pts.length - 1].x, 3000).closePath().fillPath();
+      g.lineTo(pts[pts.length - 1].x, bottom).closePath().fillPath();
       g.fillStyle(0x3a3a3f, 1).beginPath().moveTo(pts[0].x, pts[0].y);
       for (const p of pts) g.lineTo(p.x, p.y);
       for (let i = pts.length - 1; i >= 0; i--) g.lineTo(pts[i].x, pts[i].y + 22);

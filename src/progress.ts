@@ -73,9 +73,9 @@ export function chooseKit(id: string) { set('tdb-kit', id); }
 
 // ---------- ghost (best run replay) ----------
 export function loadGhost(level: number): number[] | null {
-  try { const v = get(`tdb-ghost-${level}`); return v ? JSON.parse(v) : null; } catch { return null; }
+  try { const v = get(`tdb-ghost2-${level}`); return v ? JSON.parse(v) : null; } catch { return null; }
 }
-export function saveGhost(level: number, frames: number[]) { set(`tdb-ghost-${level}`, JSON.stringify(frames)); }
+export function saveGhost(level: number, frames: number[]) { set(`tdb-ghost2-${level}`, JSON.stringify(frames)); }
 
 // ---------- settings ----------
 export function autoPedal() { return get('tdb-autopedal') !== '0'; }

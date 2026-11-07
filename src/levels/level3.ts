@@ -1,7 +1,7 @@
 import { LevelDef, TerrainBuilder } from './types';
 
 // Level 3 — Haldon Descent: fast forest roads, gravel, mud pits and big jumps.
-const t = new TerrainBuilder(-400, 300);
+const t = new TerrainBuilder(-400, 300, 2.4); // hills x2.4
 t.flat(800);
 const bel = t.x; t.rollers(900, 50, 3); t.flat(600); t.slope(400, -60); t.flat(700); t.slope(500, 90); // Belvedere woods
 t.slope(800, 150);
@@ -13,16 +13,16 @@ const cat = t.x; t.flat(320);
 t.slope(500, -90);
 const carpark = t.x; t.flat(1500);                                 // car park: Lee + bollards
 t.slope(700, 220);
-const k2 = t.x; t.flat(220); t.gap(220, 160); t.flat(380);           // big pit
+const k2 = t.x; t.flat(220); t.gap(180, 160); t.flat(420);           // big pit
 const gravel2 = t.x; t.slope(800, 260);
 const hiker = t.x; t.flat(1000);
-const tele = t.x; t.rollers(800, 45, 3); t.flat(500); t.slope(600, 150); t.flat(400); t.slope(500, -80); t.flat(600); // Telegraph Hill
+const tele = t.x; t.rollers(800, 45, 3); t.flat(500); t.slope(600, -170); t.flat(400); t.slope(500, 230); t.flat(600); // Telegraph Hill: up and over
 t.slope(500, 120);
 const d2 = t.x; t.slope(900, 240); t.flat(200); t.gap(190, 150); t.flat(500); t.slope(700, 200); t.flat(300); // the second big descent
 const end = t.x; t.flat(1000);
 const finishX = end + 650;
 
-export const LEVEL3: LevelDef = {
+export const LEVEL3: LevelDef = t.finalize({
   id: 3,
   name: 'Haldon Descent',
   subtitle: 'Brakes are just a suggestion',
@@ -46,8 +46,8 @@ export const LEVEL3: LevelDef = {
     { type: 'gravel', x: gravel1, len: 900 },
     { type: 'cat', x: cat + 160 },
     { type: 'kicker', x: carpark + 1240, h: 82, len: 175, big: true },
-    { type: 'kicker', x: k2 + 40, h: 46, len: 175 },
-    { type: 'hazard', x: k2 + 220, len: 220, kind: 'mud' },
+    { type: 'kicker', x: k2 + 40, h: 54, len: 175 },
+    { type: 'hazard', x: k2 + 220, len: 180, kind: 'mud' },
     { type: 'slowmo', x: k2 + 150, len: 420 },
     { type: 'gravel', x: gravel2 + 300, len: 500 },
     { type: 'walker', x: hiker + 400, exitX: hiker + 900, who: 'hiker' },
@@ -103,4 +103,4 @@ export const LEVEL3: LevelDef = {
     { type: 'coffee', x: d2 + 1500 },
     { type: 'yoghurt', x: d2 + 2300, dy: -50 },
   ],
-};
+});

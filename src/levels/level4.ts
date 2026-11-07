@@ -1,7 +1,7 @@
 import { LevelDef, TerrainBuilder } from './types';
 
 // Level 4 — Dartmoor: the long one. Headwinds, sheep, ponies, cattle grids, bogs.
-const t = new TerrainBuilder(-400, 600);
+const t = new TerrainBuilder(-400, 600, 2.2); // hills x2.2
 t.flat(800);
 t.slope(900, -200);
 const grid1 = t.x; t.grid(); t.flat(500);              // onto the moor
@@ -21,15 +21,15 @@ const pt = t.x; t.flat(600); t.slope(900, -150); t.flat(700); t.grid(); t.flat(4
 const hay = t.x; t.flat(300); t.slope(1100, -220); const haytop = t.x; t.flat(500); t.slope(1200, 300); // Haytor
 const wide = t.x; t.flat(900); t.grid(); t.flat(600);                                  // Widecombe
 t.slope(800, -120); t.flat(300); t.slope(800, 140);
-const post = t.x; t.flat(600); t.slope(700, 120); t.flat(300); t.gap(200, 110); t.flat(500); t.slope(900, -160); t.flat(400); // Postbridge
+const post = t.x; t.flat(600); t.slope(700, 120); t.flat(300); t.gap(170, 110); t.flat(530); t.slope(900, -160); t.flat(400); // Postbridge
 const dm = t.x; t.slope(1200, 280); t.flat(400); t.grid(); t.flat(300); t.slope(1400, -300); t.flat(500); // Dartmeet
-const hound = t.x; t.rollers(1500, 45, 4); t.flat(800); t.slope(800, 150); t.flat(600); t.gap(190, 120); t.flat(500); t.slope(900, -120); t.flat(800); // Hound Tor
+const hound = t.x; t.rollers(1500, 45, 4); t.flat(800); t.slope(800, 150); t.flat(600); t.gap(170, 120); t.flat(520); t.slope(900, -120); t.flat(800); // Hound Tor
 const mer = t.x; t.flat(500); t.slope(1100, -200); t.flat(600); t.slope(1100, 220); t.flat(700);                               // Merrivale
 const two = t.x; t.slope(1000, 200); t.flat(1200); t.rollers(1000, 35, 3); t.flat(600);                                        // Two Bridges
 const end = t.x; t.flat(1000);
 const finishX = end + 650;
 
-export const LEVEL4: LevelDef = {
+export const LEVEL4: LevelDef = t.finalize({
   id: 4,
   name: 'Dartmoor',
   subtitle: '100 miles. Garmin is not happy.',
@@ -59,8 +59,8 @@ export const LEVEL4: LevelDef = {
     { type: 'gust', x: hay + 300, len: 1100 },
     // Postbridge: the river under the clapper bridge
     { type: 'walker', x: post + 80, exitX: post + 560, who: 'pony' },
-    { type: 'kicker', x: post + 1420, h: 40, len: 165 },
-    { type: 'hazard', x: post + 1600, len: 200, kind: 'water' },
+    { type: 'kicker', x: post + 1420, h: 48, len: 165 },
+    { type: 'hazard', x: post + 1600, len: 170, kind: 'water' },
     { type: 'sheep', x: post + 2050 },
     // Dartmeet: send it off the top
     { type: 'kicker', x: post + 3380, h: 82, len: 175, big: true },
@@ -69,8 +69,8 @@ export const LEVEL4: LevelDef = {
     { type: 'roller', x: dm + 3460, kind: 'boulder' },
     // Hound Tor
     { type: 'dog', x: hound + 1550 },
-    { type: 'kicker', x: hound + 3520, h: 40, len: 165 },
-    { type: 'hazard', x: hound + 3700, len: 190, kind: 'bog' },
+    { type: 'kicker', x: hound + 3520, h: 46, len: 165 },
+    { type: 'hazard', x: hound + 3700, len: 170, kind: 'bog' },
     // Merrivale
     { type: 'gust', x: mer + 500, len: 1100 },
     { type: 'sheep', x: mer + 2300 }, { type: 'sheep', x: mer + 2370 }, { type: 'sheep', x: mer + 2450 },
@@ -149,4 +149,4 @@ export const LEVEL4: LevelDef = {
     { type: 'gel', x: wide + 100 },
     { type: 'yoghurt', x: wide + 700, dy: -60 },
   ],
-};
+});

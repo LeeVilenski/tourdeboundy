@@ -71,50 +71,101 @@ export interface LevelDef {
   skyBottom: number;
 }
 
-/** Small helper to build smooth terrain from simple instructions. */
+/**
+ * Builds smooth terrain from simple instructions.
+ * Levels are written in "design" x (what t.x returns); with hill > 1 climbs get taller and are
+ * stretched out to stay rideable, and finalize() moves everything in the level to match.
+ */
 export class TerrainBuilder {
   pts: Pt[] = [];
-  x: number;
+  x: number;      // design x
   y: number;
-  constructor(x = -400, y = 500) { this.x = x; this.y = y; this.pts.push({ x, y }); }
+  ax: number;     // actual x
+  hill: number;
+  private segs: { d0: number; d1: number; a0: number; a1: number }[] = [];
+  constructor(x = -400, y = 500, hill = 1) { this.x = x; this.ax = x; this.y = y; this.hill = hill; this.pts.push({ x, y }); }
+
+  private advance(designLen: number, actualLen: number) {
+    this.segs.push({ d0: this.x, d1: this.x + designLen, a0: this.ax, a1: this.ax + actualLen });
+    this.x += designLen; this.ax += actualLen;
+  }
+
   flat(len: number) { return this.slope(len, 0); }
   /** Smooth (cosine) slope; negative dy = uphill. */
   slope(len: number, dy: number, step = 30) {
-    const x0 = this.x, y0 = this.y;
-    const n = Math.max(1, Math.round(len / step));
+    let alen = len;
+    if (dy) {
+      dy *= this.hill;
+      alen = Math.max(len, Math.abs(dy) / 0.34); // keep the average gradient rideable
+    }
+    const x0 = this.ax, y0 = this.y;
+    const n = Math.max(1, Math.round(alen / step));
     for (let i = 1; i <= n; i++) {
       const t = i / n;
-      this.pts.push({ x: x0 + len * t, y: y0 + dy * (1 - Math.cos(Math.PI * t)) / 2 });
+      this.pts.push({ x: x0 + alen * t, y: y0 + dy * (1 - Math.cos(Math.PI * t)) / 2 });
     }
-    this.x += len; this.y += dy;
+    this.y += dy;
+    this.advance(len, alen);
     return this;
   }
   /** Rolling bumps */
   rollers(len: number, amp: number, waves: number) {
-    const x0 = this.x, y0 = this.y; const n = Math.round(len / 25);
+    amp = Math.min(amp * Math.sqrt(this.hill), (len / waves) * 0.16);
+    const x0 = this.ax, y0 = this.y; const n = Math.round(len / 25);
     for (let i = 1; i <= n; i++) {
       const t = i / n;
       this.pts.push({ x: x0 + len * t, y: y0 - amp * Math.sin(Math.PI * waves * t) ** 2 });
     }
-    this.x += len;
+    this.advance(len, len);
     return this;
   }
   pothole(w = 34, d = 12) {
-    this.pts.push({ x: this.x + 2, y: this.y + d }, { x: this.x + w - 2, y: this.y + d }, { x: this.x + w, y: this.y });
-    this.x += w;
+    this.pts.push({ x: this.ax + 2, y: this.y + d }, { x: this.ax + w - 2, y: this.y + d }, { x: this.ax + w, y: this.y });
+    this.advance(w, w);
     return this;
   }
   /** Steep-sided pit (jump it or land in whatever's at the bottom). */
   gap(w: number, depth: number) {
-    this.pts.push({ x: this.x + 6, y: this.y + depth }, { x: this.x + w - 6, y: this.y + depth }, { x: this.x + w, y: this.y });
-    this.x += w;
+    this.pts.push({ x: this.ax + 6, y: this.y + depth }, { x: this.ax + w - 6, y: this.y + depth }, { x: this.ax + w, y: this.y });
+    this.advance(w, w);
     return this;
   }
   /** Cattle grid: a run of small ridges. */
   grid() {
-    for (let i = 0; i < 6; i++) this.pts.push({ x: this.x + i * 20 + 10, y: this.y + 5 }, { x: this.x + i * 20 + 20, y: this.y });
-    this.x += 120;
+    for (let i = 0; i < 6; i++) this.pts.push({ x: this.ax + i * 20 + 10, y: this.y + 5 }, { x: this.ax + i * 20 + 20, y: this.y });
+    this.advance(120, 120);
     return this;
   }
   mark() { return { x: this.x, y: this.y }; }
+
+  /** Design x -> actual x. */
+  map(d: number): number {
+    const segs = this.segs;
+    if (!segs.length || d <= segs[0].d0) return d + (segs[0]?.a0 - segs[0]?.d0 || 0);
+    for (const s of segs) if (d <= s.d1) return s.a0 + (s.d1 === s.d0 ? 0 : ((d - s.d0) / (s.d1 - s.d0)) * (s.a1 - s.a0));
+    const last = segs[segs.length - 1];
+    return last.a1 + (d - last.d1);
+  }
+
+  /** Move every position in the level from design x to actual x. */
+  finalize(def: LevelDef): LevelDef {
+    const m = (d: number) => Math.round(this.map(d));
+    const span = (o: { x: number; len: number }) => { const a = m(o.x); o.len = m(o.x + o.len) - a; o.x = a; };
+    for (const o of def.obstacles as any[]) {
+      if ('len' in o && o.type !== 'kicker') span(o);
+      else if ('x' in o) o.x = m(o.x);
+      if ('exitX' in o) o.exitX = m(o.exitX);
+      if ('triggerX' in o) o.triggerX = m(o.triggerX);
+    }
+    for (const p of def.pickups) p.x = m(p.x);
+    for (const d of def.decor as any[]) { if ('len' in d) span(d); else d.x = m(d.x); }
+    def.checkpoints = def.checkpoints.map(m);
+    if (def.lee) def.lee = { joinX: m(def.lee.joinX), leaveX: m(def.lee.leaveX), bollards: def.lee.bollards.map(m) };
+    if (def.boss) def.boss = { sprintX: m(def.boss.sprintX) };
+    if (def.laps) def.laps = def.laps.map(m);
+    if (def.bunch) def.bunch = { pileX: m(def.bunch.pileX) };
+    def.finishX = m(def.finishX);
+    def.terrain = this.pts;
+    return def;
+  }
 }

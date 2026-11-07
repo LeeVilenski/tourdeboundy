@@ -9,19 +9,19 @@ export function groundColor(theme: Theme) {
 }
 
 function hills(scene: Phaser.Scene, f: number, color: number, base: number, amp: number, freq: number, depth: number, L: number) {
-  const g = scene.add.graphics().setScrollFactor(f).setDepth(depth);
+  const g = scene.add.graphics().setScrollFactor(f, 0.05).setDepth(depth);
   g.fillStyle(color, 1).beginPath();
   const y0 = base + 120 * f;
-  g.moveTo(-800, 2000);
+  g.moveTo(-800, 6000);
   for (let x = -800; x <= L * f + 2200; x += 80) g.lineTo(x, y0 - amp * (Math.sin(x * freq) * 0.6 + Math.sin(x * freq * 2.3 + 1) * 0.4));
-  g.lineTo(L * f + 2200, 2000).closePath().fillPath();
+  g.lineTo(L * f + 2200, 6000).closePath().fillPath();
   return g;
 }
 
 function sea(scene: Phaser.Scene, f: number, y: number, depth: number, L: number, boats = 0) {
-  const g = scene.add.graphics().setScrollFactor(f).setDepth(depth);
+  const g = scene.add.graphics().setScrollFactor(f, 0.05).setDepth(depth);
   const y0 = y + 120 * f;
-  g.fillStyle(0x3f8fd1, 1).fillRect(-800, y0, L * f + 3000, 2000);
+  g.fillStyle(0x3f8fd1, 1).fillRect(-800, y0, L * f + 3000, 6000);
   g.fillStyle(0x6fb3e8, 1).fillRect(-800, y0, L * f + 3000, 5);
   g.lineStyle(2, 0xffffff, 0.5);
   for (let x = -700; x < L * f + 2200; x += 90) g.lineBetween(x, y0 + 18 + (x % 3) * 9, x + 30, y0 + 18 + (x % 3) * 9);
@@ -71,11 +71,11 @@ export function drawBackdrop(scene: Phaser.Scene, def: LevelDef, W: number, H: n
     case 'town': {
       hills(scene, 0.1, 0x7da486, 300, 30, 0.004, -8.5, L);
       sea(scene, 0.15, 330, -8, L, Math.ceil(L * 0.15 / 520) + 2);
-      const g = scene.add.graphics().setScrollFactor(0.45).setDepth(-7);
+      const g = scene.add.graphics().setScrollFactor(0.45, 0.05).setDepth(-7);
       const colors = [0xf7e6b5, 0xd9e8f5, 0xf5c6c6, 0xffffff, 0xc9e7c9, 0xf3d9a4];
       for (let x = -600, i = 0; x < L * 0.45 + 2000; x += 96, i++) {
         const h = 90 + ((i * 37) % 70), y = 470 + 54;
-        g.fillStyle(colors[i % colors.length], 1).fillRect(x, y - h, 88, h + 400);
+        g.fillStyle(colors[i % colors.length], 1).fillRect(x, y - h, 88, h + 6000);
         g.fillStyle(0x6b7a8f, 1).fillTriangle(x - 4, y - h, x + 44, y - h - 34, x + 92, y - h);
         g.fillStyle(0x9fd3ff, 1);
         for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) g.fillRect(x + 14 + c * 38, y - h + 16 + r * 30, 20, 18);
