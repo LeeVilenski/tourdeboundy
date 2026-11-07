@@ -29,6 +29,7 @@ for (let lap = 1; lap <= 3; lap++) {
     obstacles.push({ type: 'gulls', x: L0 + 500, len: 1600 });
   }
   if (lap >= 2) obstacles.push({ type: 'kicker', x: bank2 + 120, h: 78, len: 170, big: true });
+  if (lap === 1) obstacles.push({ type: 'kicker', x: back + 40, h: 52, len: 140 }, { type: 'highline', x: back + 210, h: 100, planks: [[0, 360]], yog: [120, 260] });
   if (lap >= 2) obstacles.push({ type: 'gravel', x: back + 60, len: 320, oil: true });
   if (lap === 2) {
     // crash in the bunch: jump the wreckage

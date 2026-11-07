@@ -92,6 +92,7 @@ export class LevelScene extends Phaser.Scene {
   slowOn = false;
   stampedes: { x: number; fired: boolean; sheep: { body: Body; sprite: Phaser.GameObjects.Image; dodged: boolean }[]; until: number }[] = [];
   confettiAt: { x: number; fired: boolean }[] = [];
+  planks: { body: Body; x0: number; x1: number; top: number; on: boolean }[] = [];
   movers: { img: Phaser.GameObjects.Image; x0: number; x1: number; v: number }[] = [];
   lee?: { npc: NpcRider; state: 'off' | 'riding' | 'down' | 'gone'; x: number; hit: Set<number>; downUntil: number; bubble?: Phaser.GameObjects.Text; bubbleUntil: number };
   andy?: { npc: NpcRider; state: 'sitting' | 'sprint' | 'done'; x: number; v: number; nextTaunt: number; bubble?: Phaser.GameObjects.Text; bubbleUntil: number };
@@ -148,7 +149,7 @@ export class LevelScene extends Phaser.Scene {
     this.gusts = []; this.inGust = false; this.movers = []; this.lee = undefined; this.andy = undefined;
     this.garminShows = 0; this.garminDone = false; this.rivals = []; this.lapShown = 1;
     this.airborne = false; this.wheelieSteps = 0; this.pendingTrick = undefined; this.camOff = -220; this.camZoom = 1;
-    this.lowDetail = false; this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 }; this.ghostFrames = []; this.ghostPlay = undefined; this.flung = false; this.trains = []; this.slowZones = []; this.slowOn = false; this.stampedes = []; this.confettiAt = []; this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
+    this.lowDetail = false; this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 }; this.ghostFrames = []; this.ghostPlay = undefined; this.flung = false; this.trains = []; this.slowZones = []; this.slowOn = false; this.stampedes = []; this.confettiAt = []; this.planks = []; this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
   }
 
   // ---------- terrain helpers ----------
@@ -212,6 +213,7 @@ export class LevelScene extends Phaser.Scene {
       this.physSteps++;
       this.stepGhost();
       this.stepSetPieces();
+      this.stepPlanks();
       this.stepFling();
       this.stepTricks();
       this.stepHazards();
@@ -476,6 +478,31 @@ export class LevelScene extends Phaser.Scene {
         this.slowZones.push({ x: o.x, len: o.len });
       } else if (o.type === 'stampede') {
         this.stampedes.push({ x: o.x, fired: false, sheep: [], until: 0 });
+      } else if (o.type === 'highline') {
+        const top = this.groundY(o.x) - o.h;
+        const g = this.add.graphics().setDepth(3);
+        const deck = this.add.graphics().setDepth(7.5);
+        for (const [a, b] of o.planks) {
+          const x0 = o.x + a, x1 = o.x + b;
+          // posts stand in the far lane, so the road underneath stays clear
+          for (let px = x0 + 20; px < x1; px += 110) g.fillStyle(0x6b4423, 1).fillRect(px - 5, top, 10, this.groundY(px) - top);
+          deck.fillStyle(0xb5835a, 1).lineStyle(3, 0x4a2f19, 1).fillRect(x0, top, x1 - x0, 14).strokeRect(x0, top, x1 - x0, 14);
+          deck.lineStyle(1.5, 0x8a5f3c, 1);
+          for (let px = x0 + 24; px < x1; px += 24) deck.lineBetween(px, top + 2, px, top + 12);
+          const body = this.matter.add.rectangle((x0 + x1) / 2, top + 7, x1 - x0, 14, {
+            isStatic: true, label: 'ground', friction: 1, frictionStatic: 10, collisionFilter: { category: 2, mask: 0, group: 0 },
+          }) as Body;
+          this.planks.push({ body, x0, x1, top, on: false });
+        }
+        this.add.text(o.x + o.planks[0][0] + 60, top - 40, 'HIGH ROUTE ⬆', { fontFamily: 'Arial Black, Arial', fontSize: '13px', color: '#111', backgroundColor: '#7CFC8A', padding: { x: 5, y: 2 } }).setOrigin(0.5).setDepth(7.5);
+        for (const dx of o.yog ?? []) {
+          const x = o.x + dx, y = top - 34;
+          const body = this.matter.add.circle(x, y, 20, { isStatic: true, isSensor: true, label: 'pickup' }) as Body;
+          const sprite = this.add.image(x, y, 'yoghurt').setScale(1 / RES).setDepth(8);
+          this.tweens.add({ targets: sprite, y: y - 6, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+          this.pickups.push({ body, sprite, type: 'yoghurt', taken: false });
+          this.stats.yoghurtsTotal++;
+        }
       } else if (o.type === 'confetti') {
         this.confettiAt.push({ x: o.x, fired: false });
       } else if (o.type === 'gust') {
@@ -1264,6 +1291,19 @@ export class LevelScene extends Phaser.Scene {
       if (s.x < rx - 900) { s.destroy(); return false; }
       return !g.done || s.active;
     });
+  }
+
+  /** Walkways are one-way: solid only when the bike is above them, so you can ride underneath. */
+  stepPlanks() {
+    const R = this.rider;
+    if (!R || !this.planks.length) return;
+    const bottom = Math.max(R.rear.position.y, R.front.position.y) + 22;
+    const x = R.position.x;
+    for (const p of this.planks) {
+      const near = x > p.x0 - 80 && x < p.x1 + 80;
+      const on = near && !R.crashed && bottom <= p.top + 10;
+      if (on !== p.on) { p.on = on; p.body.collisionFilter.mask = on ? 0xffffffff : 0; }
+    }
   }
 
   // ---------- set pieces ----------

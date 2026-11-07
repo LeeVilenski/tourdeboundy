@@ -22,6 +22,8 @@ const obstacles: ObstacleDef[] = [
   { type: 'door', x: kenn + 250, practice: true },
   { type: 'door', x: kenn + 1000 },
   { type: 'walker', x: ford + 250, exitX: ford + 750, who: 'dogwalker' },
+  { type: 'kicker', x: sea + 1080, h: 52, len: 140 },
+  { type: 'highline', x: sea + 1250, h: 100, planks: [[0, 180], [240, 460]], yog: [90, 330, 420] },
   { type: 'kicker', x: sea + 1750, h: 30, len: 90 },
   { type: 'cat', x: summit + 150 },
   { type: 'kicker', x: summit + 330, h: 82, len: 175, big: true },

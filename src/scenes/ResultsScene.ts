@@ -113,10 +113,10 @@ export class ResultsScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     const L = cx - 255, V = cx + 120, P = cx + 255;
-    const rowH = Math.min(34, 300 / sc.lines.length);
+    const rowH = Math.min(34, 236 / sc.lines.length);
     sc.lines.forEach((line, i) => {
       const y = 138 + i * rowH;
-      this.add.text(L, y, line.label, { fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '20px', color: '#cfe0ff' });
+      this.add.text(L, y, line.label, { fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: rowH < 28 ? '18px' : '20px', color: '#cfe0ff' });
       this.add.text(V, y, line.value, { fontFamily: 'Arial Black, Arial', fontSize: '19px', color: '#fff' }).setOrigin(1, 0);
       const pts = this.add.text(P, y, `${line.points >= 0 ? '+' : ''}${line.points}`, {
         fontFamily: 'Arial Black, Arial', fontSize: '19px', color: line.points >= 0 ? '#7CFC8A' : '#ff6b6b',
@@ -165,7 +165,7 @@ export class ResultsScene extends Phaser.Scene {
     }
     const verdict = stats.crashes === 0 ? 'Clean ride. Suspiciously sensible.'
       : stats.crashes > 5 ? 'Daredevil rating: off the charts.' : 'A tidy bit of carnage.';
-    this.add.text(cx, lineY + 120, verdict, { fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold italic', fontSize: '18px', color: '#ffd400' }).setOrigin(0.5);
+    if (sc.lines.length <= 9) this.add.text(cx, lineY + 120, verdict, { fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold italic', fontSize: '18px', color: '#ffd400' }).setOrigin(0.5);
 
     const btn = (x: number, label: string, color: number, fn?: () => void) => {
       const t = this.add.text(x, 560, label, {
@@ -181,6 +181,39 @@ export class ResultsScene extends Phaser.Scene {
     const next = stats.level < LEVELS.length && unlockedCount() > stats.level;
     btn(cx + 190, next ? 'NEXT ▶' : lost ? 'BEAT ANDY' : 'THE END', 0x2c7be5, next ? () => this.scene.start('Level', { level: stats.level + 1 }) : undefined);
 
+    // share card
+    const shareBtn = this.add.text(cx + 262, 72, '📸 SHARE', {
+      fontFamily: 'Arial Black, Arial', fontSize: '15px', color: '#111', backgroundColor: '#ffd400', padding: { x: 8, y: 5 },
+    }).setOrigin(1, 0.5).setDepth(70).setInteractive({ useHandCursor: true });
+    shareBtn.on('pointerdown', () => { sfx.click(); shareBtn.setVisible(false); this.shareCard(`${def.name}: ${sc.total.toLocaleString()} pts (${sc.rank} rank)`, () => shareBtn.setVisible(true)); });
+
     this.input.keyboard?.once('keydown-ENTER', () => this.scene.start('Level', { level: stats.level }));
+  }
+
+  /** Snapshot the results screen, stamp it, and share it (or download it if sharing isn't available). */
+  shareCard(text: string, done: () => void) {
+    this.game.renderer.snapshot((snap) => {
+      done();
+      const img = snap as HTMLImageElement;
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height + 60;
+      const ctx = c.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      ctx.fillStyle = '#1d2b4f'; ctx.fillRect(0, img.height, c.width, 60);
+      ctx.fillStyle = '#ffd400'; ctx.font = '900 28px Arial'; ctx.textBaseline = 'middle';
+      ctx.fillText('TOUR DE BOUNDY', 20, img.height + 30);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'right';
+      ctx.fillText(`${text} · tourdeboundy.vercel.app`, c.width - 20, img.height + 30);
+      c.toBlob(async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], 'tour-de-boundy.png', { type: 'image/png' });
+        try {
+          if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: 'Tour de Boundy', text: `${text} — can you beat it?` }); return; }
+        } catch { /* cancelled */ return; }
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = 'tour-de-boundy.png';
+        document.body.appendChild(a); a.click(); a.remove();
+      }, 'image/png');
+    });
   }
 }

@@ -21,6 +21,7 @@ export type ObstacleDef =
   | { type: 'slowmo'; x: number; len: number }                    // slow motion while airborne over here
   | { type: 'stampede'; x: number }                               // a flock of sheep charges at you
   | { type: 'confetti'; x: number }                               // crowd goes wild
+  | { type: 'highline'; x: number; h: number; planks: [number, number][]; yog?: number[] } // raised walkway: the high route (one-way: land from above)
   | { type: 'hazard'; x: number; len: number; kind: 'water' | 'mud' | 'bog' } // pit floor: crash on touch
   | { type: 'car'; x: number }       // parked car, rideable over the top
   | { type: 'trailer'; x: number }   // hay trailer with bale ramp
