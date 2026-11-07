@@ -104,6 +104,7 @@ export class LevelScene extends Phaser.Scene {
   slowOn = false;
   stampedes: { x: number; fired: boolean; sheep: { body: Body; sprite: Phaser.GameObjects.Image; dodged: boolean }[]; until: number }[] = [];
   confettiAt: { x: number; fired: boolean }[] = [];
+  grids: { x: number; done: boolean; rattle: number }[] = [];
   planks: { body: Body; x0: number; x1: number; top: number; on: boolean }[] = [];
   movers: { img: Phaser.GameObjects.Image; x0: number; x1: number; v: number }[] = [];
   lee?: { npc: NpcRider; state: 'off' | 'riding' | 'down' | 'gone'; x: number; hit: Set<number>; downUntil: number; bubble?: Phaser.GameObjects.Text; bubbleUntil: number };
@@ -161,7 +162,7 @@ export class LevelScene extends Phaser.Scene {
     this.gusts = []; this.inGust = false; this.movers = []; this.lee = undefined; this.andy = undefined;
     this.garminShows = 0; this.garminDone = false; this.rivals = []; this.lapShown = 1;
     this.airborne = false; this.wheelieSteps = 0; this.pendingTrick = undefined; this.camOff = -220; this.camZoom = 1;
-    this.sleepers = []; this.bodyWindowAt = -1e9; this.baked = []; this.rtPool = []; this.earthPool = []; this.culled = []; this.cullX = undefined; this.lowDetail = false; this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 }; this.ghostFrames = []; this.ghostPlay = undefined; this.flung = false; this.trains = []; this.slowZones = []; this.slowOn = false; this.stampedes = []; this.confettiAt = []; this.planks = []; this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
+    this.sleepers = []; this.bodyWindowAt = -1e9; this.baked = []; this.rtPool = []; this.earthPool = []; this.culled = []; this.cullX = undefined; this.lowDetail = false; this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 }; this.ghostFrames = []; this.ghostPlay = undefined; this.flung = false; this.trains = []; this.slowZones = []; this.slowOn = false; this.stampedes = []; this.confettiAt = []; this.grids = this.def.decor.filter((d) => d.type === 'grid').map((d) => ({ x: d.x, done: false, rattle: 0 })); this.planks = []; this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
   }
 
   // ---------- terrain helpers ----------
@@ -1462,6 +1463,7 @@ export class LevelScene extends Phaser.Scene {
     const r = this.rider;
     if (!r || this.finished) return;
     const rx = r.position.x, gy = (x: number) => this.groundY(x);
+    this.stepGrids();
     // race the train along the sea wall
     for (const t of this.trains) {
       if (t.state === 'wait' && rx > t.x && !r.crashed) {
@@ -1530,6 +1532,51 @@ export class LevelScene extends Phaser.Scene {
           tint: [0xd62828, 0xffd400, 0x2c7be5, 0x7CFC8A, 0xff8fb3, 0xffffff],
         }).setScrollFactor(0).setDepth(36);
         this.time.delayedCall(3500, () => { em.stop(); this.time.delayedCall(2700, () => em.destroy()); });
+      }
+    }
+  }
+
+  /** Cattle grids: rattle your fillings out, drop a slow front wheel in, or hop clean over. */
+  stepGrids() {
+    const r = this.rider;
+    for (const g of this.grids) {
+      const front = r.front.position.x;
+      if (r.position.x < g.x - 250) { g.done = false; g.rattle = 0; } // reset after a respawn behind it
+      if (g.rattle > 0 && !r.crashed) {
+        g.rattle--;
+        // jolt the bike up and down like it's on a washboard
+        if (g.rattle % 4 === 0) {
+          const kick = (g.rattle % 8 === 0 ? -1 : 1) * 1.6;
+          this.matter.body.setVelocity(r.frame, { x: r.frame.velocity.x * 0.985, y: r.frame.velocity.y + kick });
+          this.matter.body.setAngularVelocity(r.head, r.head.angularVelocity + (g.rattle % 8 === 0 ? 0.12 : -0.12));
+        }
+      }
+      if (g.done || r.crashed || front < g.x + 6 || front > g.x + 120) continue;
+      g.done = true;
+      if (!r.wheelsDown()) {
+        this.addCombo(150, 'GRID SKIPPED');
+      } else if (r.speed < 3.6) {
+        // too slow: the front wheel drops between the bars and over the top he goes
+        this.bigText(g.x + 60, this.groundY(g.x) - 120, 'WHEEL STUCK!', '#ff9f1c');
+        sfx.crash();
+        for (const w of [r.front, r.rear, r.frame]) this.matter.body.setVelocity(w, { x: 0, y: 0 });
+        this.matter.body.setPosition(r.front, { x: r.front.position.x, y: r.front.position.y + 10 });
+        this.doCrash('head');
+        for (const part of r.parts) {
+          if (part.body.label === 'wheel' || part.body.label === 'frame') continue;
+          this.matter.body.setVelocity(part.body, { x: 7, y: -7 });
+          this.matter.body.setAngularVelocity(part.body, 0.35);
+        }
+        this.time.delayedCall(900, () => this.say('Who designs these things?!'));
+      } else {
+        g.rattle = 40;
+        this.cameras.main.shake(380, 0.006);
+        sfx.rattle();
+        sfx.buzz([30, 20, 30, 20, 30, 20, 30]);
+        const h = r.head.position;
+        this.bigText(h.x, h.y - 70, 'B-B-B-BRRRRR!', '#fff');
+        this.time.delayedCall(450, () => this.say(Phaser.Utils.Array.GetRandom(['M-m-my f-f-fillings!', 'C-c-cattle g-g-grids. W-w-why.', 'Th-that loosened a b-b-bolt.', 'F-f-fine. Legs are f-f-fine.']), 1800));
+        this.addCombo(50, 'RATTLED');
       }
     }
   }
