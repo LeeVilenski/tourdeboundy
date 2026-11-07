@@ -1027,6 +1027,14 @@ export class LevelScene extends Phaser.Scene {
     if (!this.finished && !r.crashed && r.position.x > this.def.finishX) {
       if (this.andy) this.stats.boss = 'won';
       this.finish();
+    } else if (!this.finished && r.crashed && Math.max(r.head.position.x, r.torso.position.x) > this.def.finishX) {
+      // Trials-style: a body flung over the line still counts
+      if (this.andy) this.stats.boss = 'won';
+      this.stats.trickPoints += 500;
+      this.respawnAt = 0;
+      this.trickToast('LAUNCHED OVER THE LINE!  +500');
+      sfx.buzz([40, 30, 80]);
+      this.finish();
     }
   }
 
@@ -1611,7 +1619,7 @@ export class LevelScene extends Phaser.Scene {
       B.setAngularVelocity(r.frame, -0.06 - 0.06 * hard);
       this.bigText(f, this.groundY(f) - 90, 'BANG!', '#ff6b6b');
       if (r.stepCount >= r.puncturedUntil && Math.random() < 0.35 + 0.35 * hard) {
-        r.puncturedUntil = r.stepCount + 600;
+        r.puncturedUntil = r.stepCount + 480;
         this.puncturedNotice = r.puncturedUntil;
         this.time.delayedCall(250, () => { sfx.hiss(); this.toast('PUNCTURE! 🛞 TOP SPEED DOWN'); });
         this.time.delayedCall(700, () => this.say(pick(['PSSSHHHH. Brilliant.', 'Pinch flat. Classic.', 'Council will hear about this.', 'Tubeless next time.'])));
