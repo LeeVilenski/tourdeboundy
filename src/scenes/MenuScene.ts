@@ -86,8 +86,10 @@ export class MenuScene extends Phaser.Scene {
     let ki = Math.max(0, KITS.findIndex((k) => k.id === currentKit().id));
     let kitWill: Phaser.GameObjects.Container | undefined;
     const kitLabel = this.add.text(W / 2, 475, '', { fontFamily: 'Arial Black, Arial', fontSize: '20px', color: '#fff', backgroundColor: '#1d2b4fcc', padding: { x: 14, y: 8 } }).setOrigin(0.5);
+    const perkLabel = this.add.text(W / 2, 515, '', { fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '17px', color: '#ffd400', stroke: '#1d2b4f', strokeThickness: 5 }).setOrigin(0.5);
     const showKit = () => {
       const k = KITS[ki], locked = pts < k.need;
+      perkLabel.setText(k.perkText);
       kitLabel.setText(locked ? `KIT: ${k.name}  🔒 ${k.need} medal pts (you have ${pts})` : `KIT: ${k.name}`);
       if (!locked) chooseKit(k.id);
       kitWill?.destroy();
@@ -98,7 +100,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5).setInteractive({ useHandCursor: true }).on('pointerdown', () => { ki = (ki + d + KITS.length) % KITS.length; sfx.click(); showKit(); });
     arrow(W / 2 - 300, '◀', -1); arrow(W / 2 + 300 - 60, '▶', 1);
     showKit();
-    this.add.text(W / 2, 520, 'Earn medal points: 🥉1 🥈2 🥇3 per level, ⭐2 per hidden challenge', { fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '15px', color: '#fff', stroke: '#1d2b4f', strokeThickness: 4 }).setOrigin(0.5);
+    this.add.text(W / 2, 545, 'Earn medal points: 🥉1 🥈2 🥇3 per level, ⭐2 per hidden challenge', { fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '15px', color: '#fff', stroke: '#1d2b4f', strokeThickness: 4 }).setOrigin(0.5);
     const ap = this.add.text(20, 20, '', { fontFamily: 'Arial Black, Arial', fontSize: '16px', color: '#111', backgroundColor: '#ffd400', padding: { x: 10, y: 6 } }).setInteractive({ useHandCursor: true });
     const apShow = () => ap.setText(`AUTO-PEDAL: ${autoPedal() ? 'ON' : 'OFF'}`);
     ap.on('pointerdown', () => { setAutoPedal(!autoPedal()); sfx.click(); apShow(); });

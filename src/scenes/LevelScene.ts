@@ -57,6 +57,7 @@ const WALKERS: Record<WalkerKind, { tex: string; w: number; h: number; texH: num
 };
 
 const NO_BAKE = new URLSearchParams(location.search).has('nobake');
+const CHAMP_MSGS: [string, string][] = [['GARMIN', 'WORLD CLASS!'], ['TRAINING', 'PEAKING'], ['STATUS', 'LEGEND'], ['RECOVERY', 'NOT NEEDED'], ['VO2 MAX', 'OFF THE CHART']];
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 
 export class LevelScene extends Phaser.Scene {
@@ -94,6 +95,7 @@ export class LevelScene extends Phaser.Scene {
   bakeH = { back: 600, front: 200 };
   baked: { x0: number; x1: number; top: number; bot: number; depth: number; gs: Phaser.GameObjects.Graphics[]; rt?: Phaser.GameObjects.RenderTexture; earth?: Phaser.GameObjects.Rectangle }[] = [];
   lowDetail = false;
+  luckyUsed = false;
   combo = { count: 0, pts: 0, lastStep: 0, slow: 0 };
   ghostFrames: number[] = [];
   ghostPlay?: { frames: number[]; c: Phaser.GameObjects.Container };
@@ -162,7 +164,7 @@ export class LevelScene extends Phaser.Scene {
     this.gusts = []; this.inGust = false; this.movers = []; this.lee = undefined; this.andy = undefined;
     this.garminShows = 0; this.garminDone = false; this.rivals = []; this.lapShown = 1;
     this.airborne = false; this.wheelieSteps = 0; this.pendingTrick = undefined; this.camOff = -220; this.camZoom = 1;
-    this.sleepers = []; this.bodyWindowAt = -1e9; this.baked = []; this.rtPool = []; this.earthPool = []; this.culled = []; this.cullX = undefined; this.lowDetail = false; this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 }; this.ghostFrames = []; this.ghostPlay = undefined; this.flung = false; this.trains = []; this.slowZones = []; this.slowOn = false; this.stampedes = []; this.confettiAt = []; this.grids = this.def.decor.filter((d) => d.type === 'grid').map((d) => ({ x: d.x, done: false, rattle: 0 })); this.planks = []; this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
+    this.sleepers = []; this.bodyWindowAt = -1e9; this.luckyUsed = false; this.baked = []; this.rtPool = []; this.earthPool = []; this.culled = []; this.cullX = undefined; this.lowDetail = false; this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 }; this.ghostFrames = []; this.ghostPlay = undefined; this.flung = false; this.trains = []; this.slowZones = []; this.slowOn = false; this.stampedes = []; this.confettiAt = []; this.grids = this.def.decor.filter((d) => d.type === 'grid').map((d) => ({ x: d.x, done: false, rattle: 0 })); this.planks = []; this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
   }
 
   // ---------- terrain helpers ----------
@@ -249,7 +251,7 @@ export class LevelScene extends Phaser.Scene {
       this.stepTricks();
       this.stepHazards();
       if (this.inGust && !this.rider.crashed) {
-        const f = this.rider.totalMass() * 1.7e-4;
+        const f = this.rider.totalMass() * 1.7e-4 * (this.rider.kit.perk === 'windproof' ? 0.4 : 1);
         this.matter.body.applyForce(this.rider.frame, this.rider.frame.position, { x: -f, y: 0 });
       }
     });
@@ -618,6 +620,15 @@ export class LevelScene extends Phaser.Scene {
 
   doCrash(reason: 'head' | 'horse' | 'flip' | 'fall') {
     if (this.rider.crashed || this.finished) return;
+    // Wheelers #13 kit: the first crash each level doesn't count
+    if (this.rider.kit.perk === 'lucky13' && !this.luckyUsed) {
+      this.luckyUsed = true;
+      const x = this.rider.position.x - (reason === 'horse' ? 220 : 40);
+      this.bigText(this.rider.head.position.x, this.rider.head.position.y - 60, 'SAVED BY LUCKY #13!', '#e8ff2a');
+      sfx.pickup(); sfx.buzz(40);
+      this.time.delayedCall(10, () => { this.spawn(x); this.say('Thirteen. Luckiest number there is.'); });
+      return;
+    }
     this.rider.crash();
     this.stats.crashes++;
     stopCruise();
@@ -674,6 +685,16 @@ export class LevelScene extends Phaser.Scene {
     (body as any).__gone = true;
     this.matter.world.remove(body);
     this.tweens.killTweensOf(p.sprite);
+    if (p.type === 'cake' && this.rider.kit.perk === 'snacks') {
+      // Off duty kit: cake is fuel
+      this.sparks.explode(14, p.sprite.x, p.sprite.y);
+      this.tweens.add({ targets: p.sprite, scale: 1, alpha: 0, duration: 300, onComplete: () => p.sprite.destroy() });
+      sfx.pickup();
+      this.rider.boost(2500); this.rider.stamina = Math.min(1, this.rider.stamina + 0.3);
+      this.toast('CAKE BOOST! 🍰');
+      this.say(pick(["Off duty. Cake's allowed.", 'Calories are just speed.', "Don't tell the Garmin."]));
+      return;
+    }
     if (p.type === 'cake') {
       this.stats.cakesRefused++;
       sfx.bad();
@@ -759,7 +780,8 @@ export class LevelScene extends Phaser.Scene {
   // ---------- Garmin ----------
   showGarmin() {
     this.garminShows++;
-    const [t, m] = this.def.garminGivesUp && this.garminShows >= 4 ? ['GARMIN', 'FINE. DO WHAT YOU WANT.'] : pick(GARMIN_MSGS);
+    const champ = this.rider.kit.perk === 'champion';
+    const [t, m] = champ ? pick(CHAMP_MSGS) : this.def.garminGivesUp && this.garminShows >= 4 ? ['GARMIN', 'FINE. DO WHAT YOU WANT.'] : pick(GARMIN_MSGS);
     if (this.def.garminGivesUp && this.garminShows >= 4) {
       this.garminDone = true;
       this.time.delayedCall(900, () => this.say('Finally. Some peace.'));
@@ -824,6 +846,23 @@ export class LevelScene extends Phaser.Scene {
     this.speedLines.setAlpha(Phaser.Math.Clamp((spd - 10.5) / 3, 0, 0.7));
     this.cameras.main.setFollowOffset(this.camOff, 70).setZoom(this.camZoom);
     this.updateHazards(now, dt);
+    // kit perks with something to see every frame
+    if (!r.crashed && !this.finished) {
+      if (r.kit.perk === 'champion' && r.speed > 5 && this.game.loop.frame % 4 === 0) this.sparks.explode(2, r.rear.position.x, r.rear.position.y);
+      if (r.kit.perk === 'snacks') {
+        // yoghurts (and gels/coffee) drift towards Will
+        for (const p of this.pickups) {
+          if (p.taken || p.type === 'cake') continue;
+          const dx = r.position.x - p.sprite.x, dy = r.position.y - 30 - p.sprite.y, d = Math.hypot(dx, dy);
+          if (d < 190 && d > 5) {
+            const k = Math.min(1, 9 / d) * (dt / 16.67);
+            this.tweens.killTweensOf(p.sprite);
+            p.sprite.x += dx * k; p.sprite.y += dy * k;
+            this.matter.body.setPosition(p.body, { x: p.sprite.x, y: p.sprite.y });
+          }
+        }
+      }
+    }
     // slow phone? drop the busiest scenery (crowds, hedge blobs, trees) and extra particles
     if (!this.lowDetail && now - this.startTime > 4000 && this.game.loop.actualFps < 42) {
       this.lowDetail = true;

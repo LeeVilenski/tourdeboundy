@@ -77,7 +77,7 @@ export function makeTextures(scene: Phaser.Scene) {
   });
 
   // ---------- Frame (local origin = texture centre 65,40) ----------
-  const frameTex = (key: string, tube: string, accent: string, decal: string, decalColor = '#fff') => make(scene, key, 130, 80, (ctx) => {
+  const frameTex = (key: string, tube: string, accent: string, decal: string, decalColor = '#fff', extra?: (ctx: CanvasRenderingContext2D, o: (x: number, y: number) => number[]) => void) => make(scene, key, 130, 80, (ctx) => {
     const o = (x: number, y: number) => [x + 65, y + 40];
     const RA = o(-42, 18), BB = o(-2, 24), ST = o(-16, -18), STT = o(-14, -14), HT = o(30, -14), HB = o(33, -1), FA = o(42, 18);
     // chainring + chain
@@ -110,8 +110,25 @@ export function makeTextures(scene: Phaser.Scene) {
     ctx.fillStyle = decalColor; ctx.font = 'italic 900 7px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(decal, 0, 0.5);
     ctx.restore();
+    extra?.(ctx, o);
   });
   frameTex('frame', '#202024', '#c0c4cc', 'TREKK');
+  // kit bikes
+  frameTex('frame_retro', '#c9ced6', '#e8590c', 'CANNIBAL', '#e8590c', (ctx, o) => {
+    // chrome lugs + down-tube shifters
+    ctx.fillStyle = '#ffffff';
+    for (const [x, y] of [[-2, 24], [-16, -18], [30, -14], [33, -1]]) { const p = o(x, y); ctx.beginPath(); ctx.arc(p[0], p[1], 3, 0, Math.PI * 2); ctx.fill(); }
+  });
+  frameTex('frame_shopper', '#2a9d8f', '#ffffff', 'DUTCHY', '#fff', (ctx, o) => {
+    // wicker basket with a yoghurt, and a mudguard
+    const b = o(36, -34);
+    ctx.fillStyle = '#c8955a'; ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(b[0] - 2, b[1]); ctx.lineTo(b[0] + 24, b[1]); ctx.lineTo(b[0] + 21, b[1] + 15); ctx.lineTo(b[0] + 1, b[1] + 15); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#8a5f3c'; ctx.lineWidth = 1; for (let i = 1; i < 5; i++) { ctx.beginPath(); ctx.moveTo(b[0] + i * 5, b[1]); ctx.lineTo(b[0] + i * 5 - 1, b[1] + 15); ctx.stroke(); }
+    ctx.fillStyle = '#fff'; ctx.fillRect(b[0] + 6, b[1] - 7, 9, 8); ctx.fillStyle = '#ff8fb3'; ctx.fillRect(b[0] + 6, b[1] - 4, 9, 3);
+    const m = o(-42, 18); ctx.strokeStyle = '#2a9d8f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(m[0], m[1], 26, -Math.PI * 0.95, -Math.PI * 0.25); ctx.stroke();
+  });
+  frameTex('frame_gold', '#d4a017', '#fff3b0', 'BOUNDY', '#111');
   frameTex('frame_lee', '#1d8fb0', '#0c4f63', 'GIANNT');   // Lee's teal road bike
   frameTex('frame_andy', '#c8202a', '#ffd400', 'BIANKY');
   frameTex('frame_r1', '#f2f2f2', '#d62828', 'CANYUN', '#111');
@@ -426,6 +443,23 @@ export function makeTextures(scene: Phaser.Scene) {
     ctx.fillStyle = '#6f8a55'; ctx.fillRect(x0 + 12, y0, w - 12, h);
     ctx.fillStyle = '#4e6a3a'; for (let i = 0; i < 7; i++) { ctx.beginPath(); ctx.ellipse(x0 + 16 + (i % 4) * 7, y0 + 4 + Math.floor(i / 4) * 8, 2.5, 1.2, i, 0, Math.PI * 2); ctx.fill(); }
   });
+
+  // retro Cannibal kit: orange wool jersey with black band, black shorts, white socks
+  kitTorso('torso_merckx', (ctx, x0, y0, w, h) => {
+    ctx.fillStyle = '#151515'; ctx.fillRect(x0, y0, 12, h);
+    ctx.fillStyle = '#e8590c'; ctx.fillRect(x0 + 12, y0, w - 12, h);
+    ctx.fillStyle = '#151515'; ctx.fillRect(x0 + 24, y0, 5, h);
+    ctx.fillStyle = '#fff'; ctx.font = '900 4px Arial'; ctx.fillText('CANNIBAL', x0 + 30, y0 + 11);
+  });
+  make(scene, 'arm_orange', 50, 14, (ctx) => capsule(ctx, 38, 7, 50, 14, [{ to: 0.4, color: '#e8590c' }, { to: 1, color: SKIN }]));
+  // yellow jersey
+  kitTorso('torso_yellow', (ctx, x0, y0, w, h) => {
+    ctx.fillStyle = '#151515'; ctx.fillRect(x0, y0, 12, h);
+    ctx.fillStyle = '#ffd400'; ctx.fillRect(x0 + 12, y0, w - 12, h);
+    ctx.fillStyle = '#c99700'; ctx.fillRect(x0 + 12, y0 + h - 4, w - 12, 4);
+    ctx.fillStyle = '#111'; ctx.font = '900 5px Arial'; ctx.fillText('BOUNDY', x0 + 20, y0 + 11);
+  });
+  make(scene, 'arm_yellow', 50, 14, (ctx) => capsule(ctx, 38, 7, 50, 14, [{ to: 0.4, color: '#ffd400' }, { to: 1, color: SKIN }]));
   make(scene, 'arm_black', 50, 14, (ctx) => capsule(ctx, 38, 7, 50, 14, [{ to: 0.85, color: '#151515' }, { to: 1, color: SKIN }]));
   make(scene, 'arm_white', 50, 14, (ctx) => capsule(ctx, 38, 7, 50, 14, [{ to: 0.4, color: '#f4f4f4' }, { to: 1, color: SKIN }]));
   make(scene, 'arm_shirt', 50, 14, (ctx) => capsule(ctx, 38, 7, 50, 14, [{ to: 0.35, color: '#6f8a55' }, { to: 1, color: SKIN }]));

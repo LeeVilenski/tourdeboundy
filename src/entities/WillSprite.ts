@@ -8,7 +8,7 @@ export function willOnBike(scene: Phaser.Scene, x: number, y: number, scale = 1,
   const img = (k: string, px: number, py: number, rot = 0) => c.add(scene.add.image(px, py, k).setScale(1 / RES).setRotation(rot));
   const seg = (k: string, a: number[], b: number[]) =>
     img(k, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, Math.atan2(b[1] - a[1], b[0] - a[0]));
-  img('wheel', -42, 18); img('wheel', 42, 18); img('frame', 0, 0);
+  img('wheel', -42, 18); img('wheel', 42, 18); img((kit as { bike?: string }).bike ?? 'frame', 0, 0);
   seg(kit.torso, [-16, -28], [18, -50]);
   seg(kit.thigh, [-16, -28], [12, -12]);
   seg(kit.shin, [12, -12], [6, 30]);

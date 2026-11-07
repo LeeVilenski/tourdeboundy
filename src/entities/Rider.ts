@@ -110,7 +110,7 @@ export class Rider {
     this.front = M.add.circle(f.x, f.y, WHEEL_R, wheelOpts) as Body;
     this.addPart(this.rear, 'wheel', 10);
     this.addPart(this.front, 'wheel', 10);
-    this.addPart(this.frame, 'frame', 11);
+    this.addPart(this.frame, this.kit.bike, 11);
     // axles: a pin plus a little suspension spring each
     for (const wh of [this.rear, this.front]) {
       this.scene.matter.add.constraint(this.frame, wh, 0, 1, {
@@ -195,8 +195,8 @@ export class Rider {
     if (!this.crashed) {
       const boosted = now < this.boostUntil;
       const sprinting = input.sprint && this.stamina > 0.02;
-      if (sprinting) this.stamina = Math.max(0, this.stamina - 0.006);
-      else this.stamina = Math.min(1, this.stamina + 0.0015);
+      if (sprinting) this.stamina = Math.max(0, this.stamina - (this.kit.perk === 'cannibal' ? 0.0042 : 0.006));
+      else this.stamina = Math.min(1, this.stamina + (this.kit.perk === 'windproof' ? 0.0024 : 0.0015));
       const maxAV = sprinting ? 0.66 : boosted ? 0.6 : 0.52;
       const grounded = this.wheelsDown();
       if (input.pedal || input.cruise || sprinting) {
@@ -225,7 +225,7 @@ export class Rider {
         input.hopAt = 0;
         this.lastHop = this.stepCount;
         // power hop: only near full sprint speed does the hop get big enough to clear a horse or a walker
-        const up = 6.2 + Phaser.Math.Clamp((this.speed - 8.0) * 2.4, 0, 3.8);
+        const up = 6.2 + Phaser.Math.Clamp((this.speed - 8.0) * 2.4, 0, 3.8) + (this.kit.perk === 'cannibal' ? 0.9 : 0);
         for (const { body } of this.parts) B.setVelocity(body, { x: body.velocity.x, y: body.velocity.y - up });
         this.scene.events.emit('hop');
       }
