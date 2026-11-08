@@ -47,7 +47,7 @@ export class TrophiesScene extends Phaser.Scene {
     // kits
     const pts = medalPoints();
     const ky = 112 + LEVELS.length * 52 + 14;
-    this.add.text(L, ky, `MEDAL POINTS: ${pts}   (🥉1 🥈2 🥇3 per level · ⭐2 per hidden challenge)`, { fontFamily: 'Arial Black, Arial', fontSize: '16px', color: '#ffd400' });
+    this.add.text(L, ky, `MEDAL POINTS: ${pts}   (medals: 🥉 1 pt · 🥈 2 pts · 🥇 3 pts — hidden challenge ⭐ 2 pts)`, { fontFamily: 'Arial Black, Arial', fontSize: '16px', color: '#ffd400' });
     KITS.forEach((k, i) => {
       const x = L + (i % 3) * 395, y = ky + 32 + Math.floor(i / 3) * 44;
       const got = pts >= k.need;

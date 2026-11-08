@@ -101,7 +101,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5).setInteractive({ useHandCursor: true }).on('pointerdown', () => { ki = (ki + d + KITS.length) % KITS.length; sfx.click(); showKit(); });
     arrow(W / 2 - 300, '◀', -1); arrow(W / 2 + 300 - 60, '▶', 1);
     showKit();
-    this.add.text(W / 2, 545, 'Earn medal points: 🥉1 🥈2 🥇3 per level, ⭐2 per hidden challenge', { fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '15px', color: '#fff', stroke: '#1d2b4f', strokeThickness: 4 }).setOrigin(0.5);
+    this.add.text(W / 2, 545, "Medal points: 🥉 1 · 🥈 2 · 🥇 3 · each level's hidden challenge ⭐ 2", { fontFamily: 'Trebuchet MS, Arial', fontStyle: 'bold', fontSize: '15px', color: '#fff', stroke: '#1d2b4f', strokeThickness: 4 }).setOrigin(0.5);
     const ap = this.add.text(20, 20, '', { fontFamily: 'Arial Black, Arial', fontSize: '16px', color: '#111', backgroundColor: '#ffd400', padding: { x: 10, y: 6 } }).setInteractive({ useHandCursor: true });
     const apShow = () => ap.setText(`AUTO-PEDAL: ${autoPedal() ? 'ON' : 'OFF'}`);
     ap.on('pointerdown', () => { setAutoPedal(!autoPedal()); sfx.click(); apShow(); });
