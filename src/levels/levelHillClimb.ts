@@ -53,7 +53,7 @@ export const LEVEL_HC: LevelDef = t.finalize({
   outro: 'Back down for another go, then a run.',
   skyTop: 0x4a7fe0, skyBottom: 0xd6ecff,
   par: Math.round((finishX / 360) * 1.8), rankS: 11000,
-  pacer: { name: 'ANDY', speed: 6.2 }, // ~51s: a steady ride (~50s) just about matches him; a bit of sprinting beats him
+  pacer: { name: 'ANDY', speed: 6.9 }, // ~46s: a casual ride (~48s) loses; use the devils' pushes and sprint well to win
   checkpoints: [0, r2 + 100, r3 + 950, r5 + 100, r6 + 800, r7 + 900, r8 + 1000, r9 + 1100, r10 + 800, r11 + 1200, wall - 150],
   obstacles,
   decor,
