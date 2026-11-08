@@ -1191,13 +1191,18 @@ export class LevelScene extends Phaser.Scene {
     const r = this.rider;
     for (const f of this.fans) {
       if (f.state === 'wait' && r.position.x > f.x && !r.crashed) {
-        f.state = 'run'; f.until = this.physSteps + 300;
-        this.bigText(r.position.x + 80, this.groundY(r.position.x) - 150, pick(['ALLEZ ALLEZ!', 'GO ON WILLEM!', 'ALLEZ BOUNDY!']), '#ff6b6b');
-        sfx.roar();
+        f.state = 'run'; f.until = this.physSteps + 240;
+        f.sprite.setDepth(8).setScale(0.88 / RES);
+        // the fan gives you a shove up the hill, Tour-style
+        r.boost(2200); r.stamina = Math.min(1, r.stamina + 0.35);
+        this.toast("DEVIL'S PUSH! ⚡ BOOST");
+        this.bigText(r.position.x, this.groundY(r.position.x) - 160, pick(['ALLEZ ALLEZ!', 'GO ON WILLEM!', 'ALLEZ BOUNDY!']), '#ff6b6b');
+        this.addCombo(100);
       }
       if (f.state === 'run') {
-        const x = r.position.x + 90 + Math.sin(this.physSteps * 0.2) * 20;
-        f.sprite.setPosition(x, this.groundY(x) - 58 - Math.abs(Math.sin(this.physSteps * 0.4)) * 10).setFlipX(false);
+        // runs alongside on the far side of the road, just behind Will's shoulder
+        const x = r.position.x - 30 + Math.sin(this.physSteps * 0.2) * 25;
+        f.sprite.setPosition(x, this.groundY(x) - 72 - Math.abs(Math.sin(this.physSteps * 0.4)) * 10).setFlipX(false);
         if (this.physSteps > f.until || r.crashed) { f.state = 'done'; this.tweens.add({ targets: f.sprite, alpha: 0, delay: 600, duration: 800 }); }
       }
     }

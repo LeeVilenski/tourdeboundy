@@ -20,12 +20,17 @@ function tone(freq: number, dur: number, type: OscillatorType = 'square', vol = 
   o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur);
 }
 
+const noiseCache = new Map<number, AudioBuffer>();
 function noise(dur: number, vol = 0.2) {
   if (muted) return;
   const a = ac(); if (!a) return;
-  const buf = a.createBuffer(1, a.sampleRate * dur, a.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 2;
+  let buf = noiseCache.get(dur);
+  if (!buf) {
+    buf = a.createBuffer(1, Math.floor(a.sampleRate * dur), a.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 2;
+    noiseCache.set(dur, buf);
+  }
   const s = a.createBufferSource(), g = a.createGain();
   g.gain.value = vol; s.buffer = buf; s.connect(g).connect(a.destination); s.start();
 }
