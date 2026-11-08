@@ -53,7 +53,7 @@ decor.push({ type: 'board', x: straight + 200, text: '1 KM TO GO' }, { type: 'pa
 checkpoints.push(straight - 300);
 
 export const LEVEL5: LevelDef = t.finalize({
-  id: 5,
+  id: 7,
   name: 'Torbay Velodrome',
   subtitle: '4 laps. Beat Andy. He will sit on your wheel.',
   theme: 'town',

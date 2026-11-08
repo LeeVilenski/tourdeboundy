@@ -9,6 +9,7 @@ export function scoreRun(s: RunStats): { lines: ScoreLine[]; total: number; rank
   const secs = s.timeMs / 1000;
   const cakesDodged = s.cakesTotal - s.cakesRefused;
   const lines: ScoreLine[] = [];
+  if (s.pacer) lines.push({ label: "Beat Andy's time", value: s.pacer === 'won' ? 'KOM 👑' : 'No', points: s.pacer === 'won' ? 2500 : 0 });
   if (s.boss) lines.push({ label: 'Beat Andy', value: s.boss === 'won' ? 'YES 🏆' : 'Pipped', points: s.boss === 'won' ? 3000 : 0 });
   lines.push({ label: 'Time', value: fmt(secs), points: Math.max(0, Math.round((def.par - secs) * 60)) });
   lines.push({ label: 'Yoghurts', value: `${s.yoghurts} / ${s.yoghurtsTotal}`, points: s.yoghurts * 250 });

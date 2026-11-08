@@ -1,7 +1,7 @@
 export type Pt = { x: number; y: number };
 
-export type Theme = 'lanes' | 'estuary' | 'forest' | 'moor' | 'town';
-export type WalkerKind = 'horse' | 'dogwalker' | 'hiker' | 'pony';
+export type Theme = 'lanes' | 'estuary' | 'forest' | 'moor' | 'town' | 'hillclimb';
+export type WalkerKind = 'horse' | 'dogwalker' | 'hiker' | 'pony' | 'donkey';
 
 export type ObstacleDef =
   | { type: 'cat'; x: number }
@@ -13,7 +13,8 @@ export type ObstacleDef =
   | { type: 'gravel'; x: number; len: number; oil?: boolean }     // low grip (oil = diesel spill look)
   | { type: 'log'; x: number }                                    // hop it
   | { type: 'door'; x: number; practice?: boolean }               // parked car whose door swings open (practice = opens early, a demo)
-  | { type: 'roller'; x: number; kind: 'bale' | 'boulder' }       // keeps rolling down the hill at you
+  | { type: 'roller'; x: number; kind: 'bale' | 'boulder' | 'beachball' } // keeps rolling down the hill at you
+  | { type: 'fan'; x: number }                                    // a fan in a devil suit runs alongside
   | { type: 'dog'; x: number }                                    // chases you: sprint away
   | { type: 'branch'; x: number }                                 // drops from a tree as you pass
   | { type: 'gulls'; x: number; len: number }                     // seagulls swoop to nick yoghurt
@@ -45,7 +46,9 @@ export type DecorDef =
   | { type: 'palm'; x: number }
   | { type: 'plaque'; x: number; text: string }
   | { type: 'board'; x: number; text: string }
-  | { type: 'cafe'; x: number; name: string };
+  | { type: 'cafe'; x: number; name: string }
+  | { type: 'deckchairs'; x: number }
+  | { type: 'icecream'; x: number };
 
 export interface LevelDef {
   id: number;
@@ -64,6 +67,7 @@ export interface LevelDef {
   miles?: number;       // show distance as miles (Dartmoor)
   lee?: { joinX: number; leaveX: number; bollards: number[] };
   boss?: { sprintX: number };
+  pacer?: { name: string; speed: number }; // hill climb: a see-through rival climbing at a steady speed
   potholes?: { x: number; w: number }[]; // filled in by the builder
   laps?: number[];                 // x of each lap line (shows LAP n/N)
   bunch?: { pileX: number };       // other riders; two crash at pileX

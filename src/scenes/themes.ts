@@ -5,7 +5,7 @@ import { RES } from '../textures';
 type GY = (x: number) => number;
 
 export function groundColor(theme: Theme) {
-  return ({ lanes: 0x6b3e1d, estuary: 0x6b3e1d, forest: 0x4a2f19, moor: 0x4e3b23, town: 0x8d8d8d } as const)[theme];
+  return ({ lanes: 0x6b3e1d, estuary: 0x6b3e1d, forest: 0x4a2f19, moor: 0x4e3b23, town: 0x8d8d8d, hillclimb: 0x6b3e1d } as const)[theme];
 }
 
 /** Background layers are split into chunks (in their own parallax coordinates) so only visible ones draw. */
@@ -65,6 +65,7 @@ export function drawBackdrop(scene: Phaser.Scene, def: LevelDef, W: number, H: n
       .setScrollFactor(0.1, 0).setScale(Phaser.Math.FloatBetween(0.35, 0.7)).setDepth(-9).setAlpha(def.theme === 'moor' ? 0.8 : 0.95);
   }
   switch (def.theme) {
+    case 'hillclimb':
     case 'lanes':
       hills(scene, out, 0.2, 0x8cc36a, 330, 60, 0.0035, -8, L);
       hills(scene, out, 0.45, 0x5fa646, 390, 50, 0.006, -7, L);
@@ -181,7 +182,7 @@ export function drawRoadside(scene: Phaser.Scene, def: LevelDef, gy: GY): Chunk[
         for (let k = 0; k < 6; k++) cg.fillCircle(x + rnd.between(-14, 14), gy(x) - 34 + rnd.between(-12, 12), 2.5);
       }
     }
-  } else if (def.theme === 'town') {
+  } else if (def.theme === 'town' || def.theme === 'hillclimb') {
     // crowd behind the barriers
     for (let x = x0 + 20; x < x1; x += rnd.between(16, 26)) {
       if (rnd.frac() < 0.15) continue;
@@ -276,6 +277,22 @@ export function drawDecor(scene: Phaser.Scene, def: LevelDef, gy: GY, movers: { 
       for (const a of [-2.6, -2.0, -1.4, -0.8, -0.3, 0.3]) {
         g.fillTriangle(d.x + 30, y - 232, d.x + 30 + Math.cos(a) * 110, y - 232 + Math.sin(a) * 50 + 40, d.x + 30 + Math.cos(a) * 90, y - 232 + Math.sin(a) * 50 + 56);
       }
+    } else if (d.type === 'deckchairs') {
+      const g = scene.add.graphics().setDepth(4);
+      for (let i = 0; i < 4; i++) {
+        const x = d.x + i * 46, cy = gy(x);
+        g.lineStyle(3, 0x8b6b45, 1).lineBetween(x - 14, cy, x + 4, cy - 34).lineBetween(x + 10, cy, x - 4, cy - 22);
+        for (let k = 0; k < 4; k++) g.fillStyle(k % 2 ? 0xffffff : [0xd62828, 0x2c7be5, 0x2a9d8f, 0xffd400][i], 1).fillTriangle(x - 12 + k * 4, cy - 4 - k * 7, x - 6 + k * 4, cy - 4 - k * 7, x - 4 + k * 4, cy - 12 - k * 7);
+      }
+    } else if (d.type === 'icecream') {
+      const g = scene.add.graphics().setDepth(3);
+      g.fillStyle(0xffffff, 1).lineStyle(3, 0x111111, 1).fillRoundedRect(d.x - 100, y - 110, 200, 96, 12).strokeRoundedRect(d.x - 100, y - 110, 200, 96, 12);
+      g.fillStyle(0xff8fb3, 1).fillRect(d.x - 100, y - 50, 200, 14);
+      g.fillStyle(0x9fd3ff, 1).fillRect(d.x - 60, y - 98, 90, 36);
+      g.fillStyle(0x111111, 1).fillCircle(d.x - 60, y - 12, 15).fillCircle(d.x + 60, y - 12, 15);
+      g.fillStyle(0xf3d9a4, 1).fillTriangle(d.x - 8, y - 112, d.x + 8, y - 112, d.x, y - 136);
+      g.fillStyle(0xff8fb3, 1).fillCircle(d.x, y - 118, 10);
+      scene.add.text(d.x - 15, y - 80, 'ICE CREAM', { fontFamily: 'Arial Black, Arial', fontSize: '13px', color: '#d62828' }).setOrigin(0.5).setDepth(3);
     } else if (d.type === 'cafe') {
       const g = scene.add.graphics().setDepth(1.6);
       g.fillStyle(0xf7e6b5, 1).lineStyle(3, 0x111111, 1).fillRect(d.x - 110, y - 170, 220, 170).strokeRect(d.x - 110, y - 170, 220, 170);

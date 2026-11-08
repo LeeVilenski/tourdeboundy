@@ -30,7 +30,7 @@ const end = t.x; t.flat(1000);
 const finishX = end + 650;
 
 export const LEVEL4: LevelDef = t.finalize({
-  id: 4,
+  id: 6,
   name: 'Dartmoor',
   subtitle: '100 miles. Garmin is not happy.',
   theme: 'moor',

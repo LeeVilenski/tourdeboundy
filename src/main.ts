@@ -5,10 +5,12 @@ import { MenuScene } from './scenes/MenuScene';
 import { LevelScene } from './scenes/LevelScene';
 import { ResultsScene } from './scenes/ResultsScene';
 import { wireInput, input } from './ui/input';
+import { migrateSaves } from './progress';
 
 class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
   create() {
+    migrateSaves();
     makeTextures(this);
     const params = new URLSearchParams(location.search);
     const lvl = Number(params.get('level'));

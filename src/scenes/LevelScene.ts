@@ -38,6 +38,7 @@ export interface RunStats {
   hasLee: boolean;
   bollards: number;
   boss: 'won' | 'lost' | null;
+  pacer?: 'won' | 'lost';
   trickPoints: number;
   flips: number;
   hasDog: boolean;
@@ -53,6 +54,7 @@ const WALKERS: Record<WalkerKind, { tex: string; w: number; h: number; texH: num
   horse: { tex: 'horse', w: 110, h: 112, texH: 120, speed: 0.9, ask: 'Pass wide and slow!', thanks: 'Thank you! 👋', hit: 'NEIGHHH!' },
   dogwalker: { tex: 'dogwalker', w: 90, h: 110, texH: 116, speed: 0.9, ask: 'Dog walker — ease off!', thanks: 'Morning! 👋', hit: 'OI!' },
   hiker: { tex: 'hiker', w: 50, h: 112, texH: 116, speed: 1.0, ask: 'Hiker — ease off!', thanks: 'Cheers! 🥾', hit: 'OI!' },
+  donkey: { tex: 'pony', w: 100, h: 102, texH: 96, speed: 0.5, ask: 'Donkey rides! Ease off!', thanks: 'Hee-haw! 👋', hit: 'HEE-HAW!' },
   pony: { tex: 'pony', w: 100, h: 102, texH: 96, speed: 0.6, ask: 'Dartmoor pony!', thanks: '(munches grass)', hit: 'NEIGH!' },
 };
 
@@ -97,6 +99,8 @@ export class LevelScene extends Phaser.Scene {
   lowDetail = false;
   puncturedNotice = -1;
   luckyUsed = false;
+  pacer?: { npc: NpcRider; x: number; speed: number; done: boolean; label: Phaser.GameObjects.Text };
+  fans: { x: number; state: 'wait' | 'run' | 'done'; until: number; sprite: Phaser.GameObjects.Image }[] = [];
   combo = { count: 0, pts: 0, lastStep: 0, slow: 0 };
   ghostFrames: number[] = [];
   ghostPlay?: { frames: number[]; c: Phaser.GameObjects.Container };
@@ -124,7 +128,7 @@ export class LevelScene extends Phaser.Scene {
   // hazards
   physSteps = 0;
   doors: { x: number; trigger: number; practice?: boolean; state: 'shut' | 'open' | 'done'; shutAt?: number; body?: Body; door: Phaser.GameObjects.Rectangle; lights: Phaser.GameObjects.Graphics }[] = [];
-  rollers: { x: number; kind: 'bale' | 'boulder'; next: number; live: { body: Body; sprite: Phaser.GameObjects.Image; born: number }[] }[] = [];
+  rollers: { x: number; kind: 'bale' | 'boulder' | 'beachball'; next: number; live: { body: Body; sprite: Phaser.GameObjects.Image; born: number }[] }[] = [];
   dogs: { x: number; state: 'wait' | 'chase' | 'done'; dx: number; until: number; biteCool: number; bitten?: number; sprite: Phaser.GameObjects.Image }[] = [];
   branches: { x: number; trigger: number; dropped: boolean }[] = [];
   gullZones: { x: number; len: number; next: number }[] = [];
@@ -166,7 +170,7 @@ export class LevelScene extends Phaser.Scene {
     this.gusts = []; this.inGust = false; this.movers = []; this.lee = undefined; this.andy = undefined;
     this.garminShows = 0; this.garminDone = false; this.rivals = []; this.lapShown = 1;
     this.airborne = false; this.wheelieSteps = 0; this.pendingTrick = undefined; this.camOff = -220; this.camZoom = 1;
-    this.sleepers = []; this.bodyWindowAt = -1e9; this.luckyUsed = false; this.puncturedNotice = -1; this.baked = []; this.rtPool = []; this.earthPool = []; this.culled = []; this.cullX = undefined; this.lowDetail = false; this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 }; this.ghostFrames = []; this.ghostPlay = undefined; this.flung = false; this.trains = []; this.slowZones = []; this.slowOn = false; this.stampedes = []; this.confettiAt = []; this.grids = this.def.decor.filter((d) => d.type === 'grid').map((d) => ({ x: d.x, done: false, rattle: 0 })); this.planks = []; this.holes = (this.def.potholes ?? []).map((h) => ({ ...h, done: false })); this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
+    this.sleepers = []; this.bodyWindowAt = -1e9; this.luckyUsed = false; this.puncturedNotice = -1; this.pacer = undefined; this.fans = []; this.baked = []; this.rtPool = []; this.earthPool = []; this.culled = []; this.cullX = undefined; this.lowDetail = false; this.combo = { count: 0, pts: 0, lastStep: 0, slow: 0 }; this.ghostFrames = []; this.ghostPlay = undefined; this.flung = false; this.trains = []; this.slowZones = []; this.slowOn = false; this.stampedes = []; this.confettiAt = []; this.grids = this.def.decor.filter((d) => d.type === 'grid').map((d) => ({ x: d.x, done: false, rattle: 0 })); this.planks = []; this.holes = (this.def.potholes ?? []).map((h) => ({ ...h, done: false })); this.doors = []; this.rollers = []; this.dogs = []; this.branches = []; this.gullZones = []; this.gulls = []; this.props = [];
   }
 
   // ---------- terrain helpers ----------
@@ -243,7 +247,7 @@ export class LevelScene extends Phaser.Scene {
       if (this.paused || !this.rider) return;
       this.rider.step(this.finished ? { pedal: false, brake: true, leanBack: false, leanFwd: false, sprint: false, hop: false } : input, this.time.now);
       // Lee and Andy move on the physics clock, so races stay fair on slow devices
-      if (!this.finished) { this.updateLee(this.time.now, 16.67); this.updateAndy(this.time.now, 16.67); this.updateBunch(this.time.now); }
+      if (!this.finished) { this.updateLee(this.time.now, 16.67); this.updateAndy(this.time.now, 16.67); this.updateBunch(this.time.now); this.stepPacer(); this.stepFans(); }
       this.physSteps++;
       this.updateBodyWindow();
       this.stepGhost();
@@ -495,6 +499,7 @@ export class LevelScene extends Phaser.Scene {
         const gy = this.groundY(o.x);
         const body = this.matter.add.rectangle(o.x, gy - w.h / 2, w.w, w.h, { isStatic: true, label: 'horse' }) as Body;
         const sprite = this.add.image(o.x, gy - w.texH / 2, w.tex).setScale(1 / RES).setDepth(9);
+        if (who === 'donkey') sprite.setTint(0xb7aea4);
         const label = this.add.text(o.x, gy - w.texH - 20, w.ask, { fontFamily: 'Arial Black, Arial', fontSize: '14px', color: '#111', backgroundColor: '#fff', padding: { x: 5, y: 3 } }).setOrigin(0.5).setDepth(9).setAlpha(0);
         this.horses.push({ body, sprite, exitX: o.exitX, wait: 0, gone: false, label, who });
       } else if (o.type === 'log') {
@@ -918,7 +923,7 @@ export class LevelScene extends Phaser.Scene {
       if (gap < 700 && gap > -50) h.label.setAlpha(1);
       // cleared it in the air without touching? huge style points
       const hx = h.body.position.x;
-      if (this.airborne && !r.crashed && Math.abs(r.position.x - hx) < w.w / 2 + 40) (h as any).over = true;
+      if (this.airborne && !r.crashed && r.stepCount > 60 && Math.abs(r.position.x - hx) < w.w / 2 + 40) (h as any).over = true;
       if (!(h as any).hurdled && (h as any).over && !r.crashed && r.position.x - 70 > hx + w.w / 2) {
         (h as any).hurdled = true;
         const pts = h.who === 'horse' ? 1200 : 800;
@@ -995,7 +1000,10 @@ export class LevelScene extends Phaser.Scene {
         cp.flag.clear();
         const gy = this.groundY(cp.x);
         cp.flag.fillStyle(0x2ecc40, 1).fillTriangle(cp.x + 2, gy - 110, cp.x + 2, gy - 80, cp.x + 44, gy - 95);
-        this.toast('CHECKPOINT');
+        if (this.pacer && !this.pacer.done) {
+          const secs = (this.pacer.x - r.position.x) / (this.pacer.speed * 60);
+          this.toast(secs > 0 ? `ANDY ${secs.toFixed(1)}s AHEAD` : `YOU'RE ${(-secs).toFixed(1)}s UP ON ANDY`);
+        } else this.toast('CHECKPOINT');
       }
     }
 
@@ -1053,6 +1061,18 @@ export class LevelScene extends Phaser.Scene {
   }
 
   buildCast() {
+    if (this.def.pacer) {
+      const npc = new NpcRider(this, ANDY_LOOK, 8.9, 0.95);
+      npc.c.setAlpha(0.5);
+      const x = this.def.checkpoints[0];
+      npc.place(x, (xx) => this.groundY(xx), -10);
+      const label = this.add.text(x, 0, `${this.def.pacer.name}'S TIME`, { fontFamily: 'Arial Black, Arial', fontSize: '12px', color: '#fff', backgroundColor: '#d7262e', padding: { x: 5, y: 2 } }).setOrigin(0.5).setDepth(9).setAlpha(0.8);
+      this.pacer = { npc, x, speed: this.def.pacer.speed, done: false, label };
+    }
+    for (const o of this.def.obstacles) if (o.type === 'fan') {
+      const sprite = this.add.image(o.x + 60, this.groundY(o.x + 60) - 58, 'devil').setScale(1 / RES).setDepth(9.5);
+      this.fans.push({ x: o.x, state: 'wait', until: 0, sprite });
+    }
     const L = this.def.lee;
     if (L) {
       for (const bx of L.bollards) {
@@ -1147,6 +1167,40 @@ export class LevelScene extends Phaser.Scene {
       lee.state = 'riding';
     }
     if (lee.state !== 'down') lee.npc.place(lee.x, gy, -10);
+  }
+
+  /** Hill climb: the see-through rival climbs at a steady speed from the gun. */
+  stepPacer() {
+    const p = this.pacer;
+    if (!p || this.finished) return;
+    if (!p.done) {
+      p.x += p.speed;
+      if (p.x >= this.def.finishX) {
+        p.done = true;
+        const secs = this.elapsed / 1000;
+        this.toast(`ANDY'S TIME: ${Math.floor(secs / 60)}:${(secs % 60).toFixed(1).padStart(4, '0')}`);
+        this.time.delayedCall(600, () => this.say('No KOM today. Still finishing it.'));
+      }
+    }
+    p.npc.place(p.x, (x) => this.groundY(x), -10);
+    p.label.setPosition(p.npc.c.x, p.npc.c.y - 85).setVisible(!p.done);
+  }
+
+  /** Superfans in devil suits sprint alongside, Tour-style. */
+  stepFans() {
+    const r = this.rider;
+    for (const f of this.fans) {
+      if (f.state === 'wait' && r.position.x > f.x && !r.crashed) {
+        f.state = 'run'; f.until = this.physSteps + 300;
+        this.bigText(r.position.x + 80, this.groundY(r.position.x) - 150, pick(['ALLEZ ALLEZ!', 'GO ON WILLEM!', 'ALLEZ BOUNDY!']), '#ff6b6b');
+        sfx.roar();
+      }
+      if (f.state === 'run') {
+        const x = r.position.x + 90 + Math.sin(this.physSteps * 0.2) * 20;
+        f.sprite.setPosition(x, this.groundY(x) - 58 - Math.abs(Math.sin(this.physSteps * 0.4)) * 10).setFlipX(false);
+        if (this.physSteps > f.until || r.crashed) { f.state = 'done'; this.tweens.add({ targets: f.sprite, alpha: 0, delay: 600, duration: 800 }); }
+      }
+    }
   }
 
   updateAndy(now: number, dt: number) {
@@ -1334,7 +1388,7 @@ export class LevelScene extends Phaser.Scene {
         ro.live.push({ body, sprite, born: now });
       }
       ro.live = ro.live.filter((l) => {
-        if (!(l as any).dodged && !r.crashed && l.body.position.x < rx - 40) { (l as any).dodged = true; this.addCombo(150, ro.kind === 'bale' ? 'BALE DODGED' : 'BOULDER DODGED'); }
+        if (!(l as any).dodged && !r.crashed && l.body.position.x < rx - 40) { (l as any).dodged = true; this.addCombo(150, ro.kind === 'bale' ? 'BALE DODGED' : ro.kind === 'beachball' ? 'BEACH BALL DODGED' : 'BOULDER DODGED'); }
         l.sprite.setPosition(l.body.position.x, l.body.position.y).setRotation(l.body.angle);
         // once it's stopped rolling it crumbles away, so nothing can pin you in place
         const stuck = now - l.born > 1500 && Math.hypot(l.body.velocity.x, l.body.velocity.y) < 0.8;
@@ -1778,6 +1832,7 @@ export class LevelScene extends Phaser.Scene {
     }
     this.finished = true;
     this.stats.timeMs = this.elapsed;
+    if (this.pacer) this.stats.pacer = this.pacer.done ? 'lost' : 'won';
     stopCruise();
     this.bankCombo();
     const prevBest = bestTime(this.def.id);

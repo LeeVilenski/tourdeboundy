@@ -86,8 +86,10 @@ Each level ends at a finish line. Will is handed a single pot of yoghurt as his 
 | 1 | **Devon Lanes** (tutorial) | Hedge-lined back lanes | Gentle hills, horse riders (with a warning sign), a tractor, potholes, a cat | "Quick paddleboard, anyone?" |
 | 2 | **The MMM** | Mamhead loop: Exminster → Powderham → Starcross/Cockwood → climb to Mamhead → down through Kenn and Kennford | Flat estuary section with trains and the sea wall, then a brutal Mamhead climb and a steep wooded descent. Cars on blind bends. Lee joins and hits bollards in Kenn. | "Right, boxing session." |
 | 3 | **Haldon Descent** | Haldon Hill and forest | Long fast descent with gravel, dog walkers, pedestrians and cats, plus big jumps | "Just a quick 10k run." |
-| 4 | **Dartmoor (Nello-length)** | Open moor, endurance level | Cattle grids, sheep and ponies, wind gusts, rough tracks, a long run of climbs and descents. A distance counter ticks toward 100 miles. Lee shows up again. | "100 miles? Warm-up. Swim time." |
-| 5 | **Torbay Velodrome Showdown** | The sprint race where Will crashed | A 3-lap race in a bunch, with banked corners, crowds and a lap-2 pile-up, ending in a sprint with Andy on his wheel. One corner has a "Will crashed here" plaque. | Final ending (see below) |
+| 4 | **Wheelers Hill Climb** | Exeter Wheelers club event up Pennsylvania Road | Uphill all the way to a 25% wall, crowds and a devil superfan; beat a see-through Andy's time for the KOM | — |
+| 5 | **Sidmouth Switchbacks** | Esplanade, Peak Hill, Ladram Bay, Salcombe Hill, Weston, Branscombe | Donkeys, ice cream van, seagulls, beach balls rolling downhill, groynes to hop, cream-tea cakes | — |
+| 6 | **Dartmoor (Nello-length)** | Open moor, endurance level | Cattle grids, sheep and ponies, wind gusts, rough tracks, a long run of climbs and descents. A distance counter ticks toward 100 miles. Lee shows up again. | "100 miles? Warm-up. Swim time." |
+| 7 | **Torbay Velodrome Showdown** | The sprint race where Will crashed | A 3-lap race in a bunch, with banked corners, crowds and a lap-2 pile-up, ending in a sprint with Andy on his wheel. One corner has a "Will crashed here" plaque. | Final ending (see below) |
 
 ### Ending
 Will beats Andy, stands on the podium and receives one pot of yoghurt. The Garmin flashes "REST", Will says "Nah, off for a run," and jogs out of shot. Andy mutters "tactical" in the background, and Lee hits one last bollard.

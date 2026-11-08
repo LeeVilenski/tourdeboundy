@@ -589,6 +589,27 @@ export function makeTextures(scene: Phaser.Scene) {
     ctx.fillStyle = '#2f6b35'; for (const [x, y] of [[56, 4], [100, 26], [114, 12], [20, 10]]) { ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill(); }
   });
 
+
+  make(scene, 'beachball', 56, 56, (ctx) => {
+    const c = 28, r = 25, cols = ['#d62828', '#ffffff', '#2c7be5', '#ffd400', '#ffffff', '#2a9d8f'];
+    for (let i = 0; i < 6; i++) { ctx.fillStyle = cols[i]; ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, r, (i / 6) * Math.PI * 2, ((i + 1) / 6) * Math.PI * 2); ctx.closePath(); ctx.fill(); }
+    ctx.strokeStyle = OUTLINE; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(c, c, 5, 0, Math.PI * 2); ctx.fill();
+  });
+  // a superfan in a red devil suit with a trident
+  make(scene, 'devil', 70, 120, (ctx) => {
+    ctx.strokeStyle = OUTLINE; ctx.lineWidth = 2.2;
+    ctx.fillStyle = '#d62828';
+    ctx.beginPath(); ctx.roundRect(22, 74, 9, 42, 3); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.roundRect(36, 74, 9, 42, 3); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(18, 34, 32, 46, 8); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(34, 22, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.moveTo(26, 14); ctx.lineTo(24, 2); ctx.lineTo(30, 11); ctx.moveTo(38, 11); ctx.lineTo(44, 2); ctx.lineTo(42, 14); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(36, 18, 6, 3);
+    ctx.strokeStyle = '#d9a400'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(58, 10); ctx.lineTo(58, 110); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(50, 10); ctx.lineTo(50, 20); ctx.lineTo(66, 20); ctx.lineTo(66, 10); ctx.moveTo(58, 4); ctx.lineTo(58, 20); ctx.stroke();
+    ctx.strokeStyle = '#d62828'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(48, 44); ctx.lineTo(58, 30); ctx.stroke();
+    ctx.strokeStyle = '#d62828'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(18, 76); ctx.quadraticCurveTo(4, 90, 10, 104); ctx.stroke();
+  });
   // ---------- Misc ----------
   make(scene, 'blood', 8, 8, (ctx) => { ctx.fillStyle = '#c1121f'; ctx.beginPath(); ctx.arc(4, 4, 3.5, 0, Math.PI * 2); ctx.fill(); });
   make(scene, 'spark', 8, 8, (ctx) => { ctx.fillStyle = '#fff4a3'; ctx.beginPath(); ctx.arc(4, 4, 3.5, 0, Math.PI * 2); ctx.fill(); });
