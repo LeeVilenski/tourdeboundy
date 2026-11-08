@@ -4,6 +4,7 @@ import { makeTextures } from './textures';
 import { MenuScene } from './scenes/MenuScene';
 import { LevelScene } from './scenes/LevelScene';
 import { ResultsScene } from './scenes/ResultsScene';
+import { TrophiesScene } from './scenes/TrophiesScene';
 import { wireInput, input } from './ui/input';
 import { migrateSaves } from './progress';
 
@@ -32,7 +33,7 @@ function startGame() {
       default: 'matter',
       matter: { gravity: { x: 0, y: 1 }, positionIterations: 10, velocityIterations: 8, constraintIterations: 6, runner: { fps: 60 }, debug: new URLSearchParams(location.search).has('debug') },
     },
-    scene: [BootScene, MenuScene, LevelScene, ResultsScene],
+    scene: [BootScene, MenuScene, LevelScene, ResultsScene, TrophiesScene],
   });
   (window as any).game = game;
 

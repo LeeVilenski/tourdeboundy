@@ -106,6 +106,8 @@ export class MenuScene extends Phaser.Scene {
     const apShow = () => ap.setText(`AUTO-PEDAL: ${autoPedal() ? 'ON' : 'OFF'}`);
     ap.on('pointerdown', () => { setAutoPedal(!autoPedal()); sfx.click(); apShow(); });
     apShow();
+    const tro = this.add.text(20, 62, '🏆 TROPHIES', { fontFamily: 'Arial Black, Arial', fontSize: '16px', color: '#111', backgroundColor: '#ffffff', padding: { x: 10, y: 6 } }).setInteractive({ useHandCursor: true });
+    tro.on('pointerdown', () => { sfx.click(); this.scene.start('Trophies'); });
     void CHALLENGES;
 
     // reset high scores (tap twice to confirm); keeps medals, kits and unlocked levels

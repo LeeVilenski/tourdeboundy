@@ -17,14 +17,14 @@ export function medalFor(level: number, secs: number): Medal {
 }
 
 // ---------- hidden challenges ----------
-export const CHALLENGES: Record<number, { name: string; desc: string }> = {
-  1: { name: 'Cake Refusenik', desc: 'Dodge every cake' },
-  2: { name: 'Garmin Who?', desc: 'Ignore 5 Garmin warnings' },
-  3: { name: 'Clean Sheet', desc: 'No crashes' },
-  4: { name: 'KOM', desc: "Beat Andy's time up the hill" },
-  5: { name: 'Gull-Proof', desc: 'Lose no yoghurts to seagulls' },
-  6: { name: 'Shepherd', desc: "Don't launch a single sheep" },
-  7: { name: 'Untouchable', desc: 'Beat Andy without crashing' },
+export const CHALLENGES: Record<number, { name: string; desc: string; clue?: string }> = {
+  1: { name: 'Cake Refusenik', desc: 'Dodge every cake', clue: 'Some things are worth jumping over.' },
+  2: { name: 'Garmin Who?', desc: 'Ignore 5 Garmin warnings', clue: 'Someone keeps telling you to rest...' },
+  3: { name: 'Clean Sheet', desc: 'No crashes', clue: 'Haldon, but tidy.' },
+  4: { name: 'KOM', desc: "Beat Andy's time up the hill", clue: 'Be first to the top.' },
+  5: { name: 'Gull-Proof', desc: 'Lose no yoghurts to seagulls', clue: 'Keep your yoghurt close.' },
+  6: { name: 'Shepherd', desc: "Don't launch a single sheep", clue: 'Leave the flock in peace.' },
+  7: { name: 'Untouchable', desc: 'Beat Andy without crashing', clue: 'Win it without a scratch.' },
 };
 
 const get = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
