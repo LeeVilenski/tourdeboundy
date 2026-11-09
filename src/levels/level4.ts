@@ -53,6 +53,7 @@ export const LEVEL4: LevelDef = t.finalize({
     { type: 'hazard', x: bog + 260, len: 190, kind: 'bog' },
     { type: 'walker', x: ponies + 300, exitX: ponies + 800, who: 'pony' },
     { type: 'stampede', x: gust2 - 120 },
+    { type: 'kicker', x: gust2 - 540, h: 100, len: 190, big: true }, // launch over the stampede if you time it
     { type: 'gust', x: gust2, len: 900 },
     { type: 'sheep', x: sheep2 + 120 }, { type: 'sheep', x: sheep2 + 210 }, { type: 'sheep', x: sheep2 + 270 },
     { type: 'kicker', x: end + 200, h: 30, len: 90 },
