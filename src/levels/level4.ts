@@ -43,8 +43,8 @@ export const LEVEL4: LevelDef = t.finalize({
   checkpoints: [0, grid1 + 300, gust1 + 600, tor + 200, bog - 500, ponies + 900, lee + 800, gust2 + 900, pt + 100, pt + 1700, pt + 2700, hay + 100, haytop + 100, wide + 100, wide + 1700, post + 100, post + 2000, dm + 1300, dm + 2600, hound + 1500, hound + 3000, hound + 4300, mer + 400, mer + 2200, two + 1100, two + 2400, end - 400],
   lee: { joinX: grid2 - 100, leaveX: gust2 + 950, bollards: [lee + 250, lee + 700, lee + 1200] },
   obstacles: [
-    { type: 'sheep', x: grid1 + 350 },
-    { type: 'sheep', x: grid1 + 420 },
+    { type: 'sheep', x: grid1 + 500 },
+    { type: 'sheep', x: grid1 + 570 },
     { type: 'gust', x: gust1, len: 1200 },
     { type: 'roller', x: tor + 80, kind: 'boulder' },
     { type: 'dog', x: lee + 200 },
