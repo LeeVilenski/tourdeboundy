@@ -827,12 +827,13 @@ export class LevelScene extends Phaser.Scene {
       const cam = this.cameras.main;
       const c = this.add.container(cam.width / 2, cam.height / 2).setScrollFactor(0).setDepth(100).setName('pause');
       const bg = this.add.rectangle(0, 0, cam.width, cam.height, 0x000000, 0.55);
-      const t = this.add.text(0, -60, 'PAUSED', { fontFamily: 'Arial Black, Arial', fontSize: '52px', color: '#ffd400', stroke: '#111', strokeThickness: 8 }).setOrigin(0.5);
+      const t = this.add.text(0, -80, 'PAUSED', { fontFamily: 'Arial Black, Arial', fontSize: '52px', color: '#ffd400', stroke: '#111', strokeThickness: 8 }).setOrigin(0.5);
       const resume = this.button(0, 30, 'RESUME', () => this.togglePause());
-      const quit = this.button(0, 110, 'MENU', () => { this.paused = false; this.scene.start('Menu'); });
-      c.add([bg, t, resume, quit]);
+      const restart = this.button(0, 110, 'RESTART', () => { this.paused = false; this.matter.world.resume(); this.tweens.resumeAll(); this.scene.restart({ level: this.def.id }); });
+      const quit = this.button(0, 190, 'MENU', () => { this.paused = false; this.scene.start('Menu'); });
+      c.add([bg, t, resume, restart, quit]);
       // children of a fixed container still need their own scroll factor for taps to land
-      for (const o of [bg, t, resume, quit]) o.setScrollFactor(0);
+      for (const o of [bg, t, resume, restart, quit]) o.setScrollFactor(0);
     } else {
       this.matter.world.resume();
       this.tweens.resumeAll();
